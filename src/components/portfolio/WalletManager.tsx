@@ -103,14 +103,20 @@ export default function WalletManager() {
     setCalendarViewDate(new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() - 1, 1));
   };
   const handleNextMonth = () => {
-    setCalendarViewDate(new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + 1, 1));
+    const today = new Date();
+    const nextMonth = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + 1, 1);
+    if (nextMonth > today) return;
+    setCalendarViewDate(nextMonth);
   };
 
   const handlePrevYearPage = () => {
     setCalendarViewDate(new Date(calendarViewDate.getFullYear() - 12, calendarViewDate.getMonth(), 1));
   };
   const handleNextYearPage = () => {
-    setCalendarViewDate(new Date(calendarViewDate.getFullYear() + 12, calendarViewDate.getMonth(), 1));
+    const today = new Date();
+    const nextYear = calendarViewDate.getFullYear() + 12;
+    if (nextYear > today.getFullYear()) return;
+    setCalendarViewDate(new Date(nextYear, calendarViewDate.getMonth(), 1));
   };
 
   const handleYearClick = (year: number) => {
@@ -166,11 +172,15 @@ export default function WalletManager() {
     
     const currentSelected = new Date(date);
     const isSameMonth = currentSelected.getMonth() === month && currentSelected.getFullYear() === year;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
     for(let d=1; d<=daysInMonth; d++) {
+      const dateToCheck = new Date(year, month, d);
+      const isFuture = dateToCheck > today;
       const isSelected = isSameMonth && currentSelected.getDate() === d;
       const isToday = new Date().getDate() === d && new Date().getMonth() === month && new Date().getFullYear() === year;
-      grid.push({ d, isSelected, isToday });
+      grid.push({ d, isSelected, isToday, isFuture });
     }
     return grid;
   };
@@ -363,6 +373,12 @@ export default function WalletManager() {
               variant="filled"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
+              onKeyDown={(e) => {
+                if (['+', '-', 'e', 'E'].includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
+              inputProps={{ min: 0 }}
               InputProps={{ 
                 disableUnderline: true,
                 startAdornment: (
@@ -518,16 +534,17 @@ export default function WalletManager() {
                   item.d ? (
                     <Box 
                       key={i} 
-                      onClick={() => handleDayClick(item.d)}
+                      onClick={() => !item.isFuture && handleDayClick(item.d)}
                       sx={{ 
                         width: 36, height: 36, 
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         borderRadius: '50%', cursor: 'pointer', mx: 'auto',
-                        bgcolor: item.isSelected ? '#2979ff' : 'transparent',
-                        color: item.isSelected ? 'white' : (item.isToday ? '#2979ff' : 'white'),
+                        bgcolor: item.isSelected && !item.isFuture ? '#2979ff' : 'transparent',
+                        color: item.isFuture ? '#444' : (item.isSelected ? 'white' : (item.isToday ? '#2979ff' : 'white')),
                         fontWeight: item.isSelected || item.isToday ? 'bold' : 'normal',
                         border: item.isToday && !item.isSelected ? '1px solid #2979ff' : 'none',
-                        '&:hover': { bgcolor: item.isSelected ? '#2979ff' : 'rgba(255,255,255,0.1)' }
+                        cursor: item.isFuture ? 'default' : 'pointer',
+                        '&:hover': { bgcolor: !item.isFuture && (item.isSelected ? '#2979ff' : 'rgba(255,255,255,0.1)') }
                       }}
                     >
                       {item.d}
@@ -538,22 +555,26 @@ export default function WalletManager() {
             </>
           ) : (
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, py: 1 }}>
-              {renderYearGrid().map((year) => (
-                <Button
-                  key={year}
-                  onClick={() => handleYearClick(year)}
-                  sx={{ 
-                    color: year === new Date(date).getFullYear() ? '#2979ff' : 'white',
-                    fontWeight: year === new Date(date).getFullYear() ? 'bold' : 'normal',
-                    bgcolor: year === new Date(date).getFullYear() ? 'rgba(41, 121, 255, 0.1)' : 'transparent',
-                    borderRadius: 2,
-                    py: 1.5,
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' }
-                  }}
-                >
-                  {year}
-                </Button>
-              ))}
+              {renderYearGrid().map((year) => {
+                const isFutureYear = year > new Date().getFullYear();
+                return (
+                  <Button
+                    key={year}
+                    onClick={() => !isFutureYear && handleYearClick(year)}
+                    disabled={isFutureYear}
+                    sx={{ 
+                      color: isFutureYear ? '#444' : (year === new Date(date).getFullYear() ? '#2979ff' : 'white'),
+                      fontWeight: year === new Date(date).getFullYear() ? 'bold' : 'normal',
+                      bgcolor: year === new Date(date).getFullYear() ? 'rgba(41, 121, 255, 0.1)' : 'transparent',
+                      borderRadius: 2,
+                      py: 1.5,
+                      '&:hover': { bgcolor: !isFutureYear && 'rgba(255,255,255,0.1)' }
+                    }}
+                  >
+                    {year}
+                  </Button>
+                );
+              })}
             </Box>
           )}
 
