@@ -3,11 +3,32 @@ set "PROJECT_ROOT=%~dp0"
 set "ICON_PATH=%PROJECT_ROOT%icon.ico"
 
 echo ==========================================
-echo 1. React Uygulamasi Derleniyor (Build)...
+echo 0. Gerekli Kutuphaneler Yukleniyor...
 echo ==========================================
 cd /d "%PROJECT_ROOT%"
+
+echo NPM paketleri yukleniyor (Bu islem biraz surebilir)...
+call npm install
+if %errorlevel% neq 0 (
+    echo HATA: NPM install basarisiz oldu. Node.js yuklu mu?
+    pause
+    exit /b %errorlevel%
+)
+
+echo.
+echo PyInstaller ve Python kutuphaneleri yukleniyor...
+pip install PyInstaller flask flask-cors yfinance
+
+echo.
+echo ==========================================
+echo 1. React Uygulamasi Derleniyor (Build)...
+echo ==========================================
 call npm run build
-if %errorlevel% neq 0 exit /b %errorlevel%
+if %errorlevel% neq 0 (
+    echo HATA: React build islemi basarisiz oldu.
+    pause
+    exit /b %errorlevel%
+)
 
 echo.
 echo ==========================================
