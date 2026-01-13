@@ -31,6 +31,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 
 export default function WalletManager() {
   const [open, setOpen] = useState(false);
@@ -42,6 +43,8 @@ export default function WalletManager() {
   const itemsPerPage = 5;
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<number | null>(null);
+  const [balance, setBalance] = useState(0);
+  const [balanceErrorOpen, setBalanceErrorOpen] = useState(false);
   
   // Calendar State
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
@@ -58,6 +61,9 @@ export default function WalletManager() {
         const data = await res.json();
         if (data.transactions) {
           setTransactions(data.transactions);
+        }
+        if (data.balance !== undefined) {
+          setBalance(data.balance);
         }
       } catch (err) {
         console.error("Wallet history fetch error:", err);
@@ -186,6 +192,12 @@ export default function WalletManager() {
   };
 
   const handleSubmit = async () => {
+    const val = Number(amount);
+    if (type === 'WITHDRAW' && val > balance) {
+      setBalanceErrorOpen(true);
+      return;
+    }
+
     try {
       await fetch('http://localhost:5000/api/wallet', {
         method: 'POST',
@@ -632,6 +644,48 @@ export default function WalletManager() {
             Sil
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* Yetersiz Bakiye Uyarısı */}
+      <Dialog
+        open={balanceErrorOpen}
+        onClose={() => setBalanceErrorOpen(false)}
+        PaperProps={{
+          sx: {
+            bgcolor: '#1e1e1e',
+            color: 'white',
+            borderRadius: 3,
+            border: '1px solid rgba(255, 82, 82, 0.3)',
+            minWidth: '320px',
+            textAlign: 'center',
+            p: 1
+          }
+        }}
+      >
+        <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <Avatar sx={{ bgcolor: 'rgba(255, 82, 82, 0.15)', color: '#ff5252', width: 56, height: 56 }}>
+            <ErrorOutlineIcon sx={{ fontSize: 32 }} />
+          </Avatar>
+          <Typography variant="h6" fontWeight="bold" sx={{ color: '#ff5252' }}>
+            Yetersiz Bakiye
+          </Typography>
+          <Typography variant="body2" sx={{ color: '#a0a0a0', mb: 1 }}>
+            Çekmek istediğiniz tutar mevcut bakiyenizden fazla.
+          </Typography>
+          
+          <Box sx={{ bgcolor: 'rgba(255,255,255,0.05)', p: 2, borderRadius: 2, width: '100%', mb: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="body2" sx={{ color: '#a0a0a0' }}>Çekilecek Tutar:</Typography>
+              <Typography variant="body2" fontWeight="bold" sx={{ color: 'white' }}>${Number(amount).toFixed(2)}</Typography>
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Typography variant="body2" sx={{ color: '#a0a0a0' }}>Mevcut Bakiye:</Typography>
+              <Typography variant="body2" fontWeight="bold" sx={{ color: '#ff5252' }}>${balance.toFixed(2)}</Typography>
+            </Box>
+          </Box>
+
+          <Button variant="contained" fullWidth onClick={() => setBalanceErrorOpen(false)} sx={{ bgcolor: '#ff5252', color: 'white', fontWeight: 'bold', borderRadius: 2, '&:hover': { bgcolor: '#d32f2f' } }}>TAMAM</Button>
+        </Box>
       </Dialog>
     </>
   );

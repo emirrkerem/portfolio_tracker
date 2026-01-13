@@ -16,6 +16,9 @@ import RemoveIcon from '@mui/icons-material/Remove';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import TextField from '@mui/material/TextField';
 import Dialog from '@mui/material/Dialog';
 import DialogContent from '@mui/material/DialogContent';
@@ -24,6 +27,14 @@ import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import InputAdornment from '@mui/material/InputAdornment';
 import InputLabel from '@mui/material/InputLabel';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
 // Import yolları src/pages/dashboard içinde olduğumuz için ../../ ile başlar
 import StockChart from '../../components/common/StockChart';
 import { tradeStock } from '../../services/portfolioService';
@@ -56,6 +67,37 @@ export default function StockDetailView() {
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [calendarViewDate, setCalendarViewDate] = useState(new Date());
   const [calendarViewMode, setCalendarViewMode] = useState<'day' | 'year'>('day');
+  const [activeTab, setActiveTab] = useState<'general' | 'transactions'>('general');
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [balanceErrorOpen, setBalanceErrorOpen] = useState(false);
+  const [balanceErrorData, setBalanceErrorData] = useState({ cost: 0, balance: 0 });
+  const [shareErrorOpen, setShareErrorOpen] = useState(false);
+  const [shareErrorData, setShareErrorData] = useState({ required: 0, owned: 0 });
+
+  useEffect(() => {
+    const fetchTransactions = async () => {
+        if (!symbol) return;
+        try {
+            const allRes = await fetch(`http://localhost:5000/api/transactions`);
+            const allTx = await allRes.json();
+            if (Array.isArray(allTx)) {
+                // Sunucudan gelen tüm işlemler arasında bu hisseye ait olanları filtrele
+                setTransactions(allTx.filter(tx => tx.symbol === symbol).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+            }
+        } catch (error) {
+            console.error("İşlemler çekilirken hata oluştu:", error);
+            setTransactions([]); // Hata durumunda listeyi boşalt
+        }
+    };
+    fetchTransactions();
+
+    // Portföy güncellendiğinde işlemleri yeniden çekmek için bir dinleyici ekle
+    const handlePortfolioUpdate = () => fetchTransactions();
+    window.addEventListener('portfolio-updated', handlePortfolioUpdate);
+    // Component unmount olduğunda dinleyiciyi temizle
+    return () => window.removeEventListener('portfolio-updated', handlePortfolioUpdate);
+  }, [symbol]);
+
 
   useEffect(() => {
     if (symbol) {
@@ -121,14 +163,51 @@ export default function StockDetailView() {
   const handleTransactionConfirm = async () => {
     if (!symbol || !buyQuantity || !buyPrice) return;
 
+    const qtyInput = Number(buyQuantity);
+    const priceInput = Number(buyPrice);
+    const commissionVal = Number(commission);
+
+    // Bakiye Kontrolü (Sadece Alış İşlemleri İçin)
+    if (transactionType === 'BUY') {
+      let totalCost = 0;
+      if (unitType === 'SHARES') {
+        totalCost = (qtyInput * priceInput) + commissionVal;
+      } else {
+        totalCost = qtyInput + commissionVal;
+      }
+
+      if (totalCost > walletBalance) {
+        setBalanceErrorData({ cost: totalCost, balance: walletBalance });
+        setBalanceErrorOpen(true);
+        return;
+      }
+    }
+
+    // Hisse Adedi Kontrolü (Sadece Satış İşlemleri İçin)
+    if (transactionType === 'SELL') {
+      const currentOwned = transactions.reduce((total, tx) => {
+        return total + (tx.type === 'BUY' ? Number(tx.quantity) : -Number(tx.quantity));
+      }, 0);
+
+      let sellQty = 0;
+      if (unitType === 'SHARES') {
+        sellQty = qtyInput;
+      } else {
+        sellQty = qtyInput / priceInput;
+      }
+
+      if (sellQty > currentOwned) {
+        setShareErrorData({ required: sellQty, owned: currentOwned });
+        setShareErrorOpen(true);
+        return;
+      }
+    }
+
     try {
-      const qtyInput = Number(buyQuantity);
-      const priceInput = Number(buyPrice);
-      
       // Eğer USD seçildiyse adedi hesapla (Tutar / Fiyat)
       const finalQuantity = unitType === 'USD' ? qtyInput / priceInput : qtyInput;
       
-      await tradeStock(symbol, finalQuantity, priceInput, transactionType, transactionDate, Number(commission));
+      await tradeStock(symbol, finalQuantity, priceInput, transactionType, transactionDate, commissionVal);
       
       setOpenTransactionModal(false);
       setBuyQuantity('');
@@ -808,6 +887,90 @@ export default function StockDetailView() {
             
             <Button variant="contained" onClick={() => setIsDatePickerOpen(false)} sx={{ borderRadius: 2, textTransform: 'none' }}>Tamam</Button>
           </Box>
+        </Box>
+      </Dialog>
+
+      {/* Yetersiz Bakiye Uyarısı */}
+      <Dialog
+        open={balanceErrorOpen}
+        onClose={() => setBalanceErrorOpen(false)}
+        PaperProps={{
+          sx: {
+            bgcolor: '#1e1e1e',
+            color: 'white',
+            borderRadius: 3,
+            border: '1px solid rgba(255, 82, 82, 0.3)',
+            minWidth: '320px',
+            textAlign: 'center',
+            p: 1
+          }
+        }}
+      >
+        <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <Avatar sx={{ bgcolor: 'rgba(255, 82, 82, 0.15)', color: '#ff5252', width: 56, height: 56 }}>
+            <ErrorOutlineIcon sx={{ fontSize: 32 }} />
+          </Avatar>
+          <Typography variant="h6" fontWeight="bold" sx={{ color: '#ff5252' }}>
+            Yetersiz Bakiye
+          </Typography>
+          <Typography variant="body2" sx={{ color: '#a0a0a0', mb: 1 }}>
+            Bu işlemi gerçekleştirmek için yeterli bakiyeniz bulunmamaktadır.
+          </Typography>
+          
+          <Box sx={{ bgcolor: 'rgba(255,255,255,0.05)', p: 2, borderRadius: 2, width: '100%', mb: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="body2" sx={{ color: '#a0a0a0' }}>İşlem Tutarı:</Typography>
+              <Typography variant="body2" fontWeight="bold" sx={{ color: 'white' }}>${balanceErrorData.cost.toFixed(2)}</Typography>
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Typography variant="body2" sx={{ color: '#a0a0a0' }}>Mevcut Bakiye:</Typography>
+              <Typography variant="body2" fontWeight="bold" sx={{ color: '#ff5252' }}>${balanceErrorData.balance.toFixed(2)}</Typography>
+            </Box>
+          </Box>
+
+          <Button variant="contained" fullWidth onClick={() => setBalanceErrorOpen(false)} sx={{ bgcolor: '#ff5252', color: 'white', fontWeight: 'bold', borderRadius: 2, '&:hover': { bgcolor: '#d32f2f' } }}>TAMAM</Button>
+        </Box>
+      </Dialog>
+
+      {/* Yetersiz Hisse Uyarısı */}
+      <Dialog
+        open={shareErrorOpen}
+        onClose={() => setShareErrorOpen(false)}
+        PaperProps={{
+          sx: {
+            bgcolor: '#1e1e1e',
+            color: 'white',
+            borderRadius: 3,
+            border: '1px solid rgba(255, 82, 82, 0.3)',
+            minWidth: '320px',
+            textAlign: 'center',
+            p: 1
+          }
+        }}
+      >
+        <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <Avatar sx={{ bgcolor: 'rgba(255, 82, 82, 0.15)', color: '#ff5252', width: 56, height: 56 }}>
+            <ErrorOutlineIcon sx={{ fontSize: 32 }} />
+          </Avatar>
+          <Typography variant="h6" fontWeight="bold" sx={{ color: '#ff5252' }}>
+            Yetersiz Hisse Adedi
+          </Typography>
+          <Typography variant="body2" sx={{ color: '#a0a0a0', mb: 1 }}>
+            Bu işlemi gerçekleştirmek için portföyünüzde yeterli miktarda hisse bulunmamaktadır.
+          </Typography>
+          
+          <Box sx={{ bgcolor: 'rgba(255,255,255,0.05)', p: 2, borderRadius: 2, width: '100%', mb: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="body2" sx={{ color: '#a0a0a0' }}>Satılacak Adet:</Typography>
+              <Typography variant="body2" fontWeight="bold" sx={{ color: 'white' }}>{shareErrorData.required.toFixed(4)}</Typography>
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Typography variant="body2" sx={{ color: '#a0a0a0' }}>Mevcut Adet:</Typography>
+              <Typography variant="body2" fontWeight="bold" sx={{ color: '#ff5252' }}>{shareErrorData.owned.toFixed(4)}</Typography>
+            </Box>
+          </Box>
+
+          <Button variant="contained" fullWidth onClick={() => setShareErrorOpen(false)} sx={{ bgcolor: '#ff5252', color: 'white', fontWeight: 'bold', borderRadius: 2, '&:hover': { bgcolor: '#d32f2f' } }}>TAMAM</Button>
         </Box>
       </Dialog>
     </Box>
