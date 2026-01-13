@@ -503,7 +503,7 @@ export default function StockDetailView() {
         <DialogContent sx={{ p: 3 }}>
           <Box sx={{ mb: 3, p: 2, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
             <Typography variant="caption" sx={{ color: '#a0a0a0', display: 'block', mb: 0.5 }}>Mevcut Bakiye (Buying Power)</Typography>
-            <Typography variant="h5" fontWeight="bold" sx={{ color: 'white' }}>${walletBalance.toFixed(2)}</Typography>
+            <Typography variant="h5" fontWeight="bold" sx={{ color: 'white' }}>${walletBalance.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
           </Box>
 
           <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
@@ -741,7 +741,7 @@ export default function StockDetailView() {
                 {transactionType === 'BUY' ? 'Toplam Tutar' : 'Tahmini Gelir'}
               </Typography>
               <Typography variant="h4" fontWeight="bold" sx={{ color: transactionType === 'BUY' ? '#69f0ae' : '#ff5252' }}>
-                ${calculateTotal().toFixed(2)}
+                ${Number(calculateTotal()).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </Typography>
             </Box>
             <Button 
@@ -920,11 +920,11 @@ export default function StockDetailView() {
           <Box sx={{ bgcolor: 'rgba(255,255,255,0.05)', p: 2, borderRadius: 2, width: '100%', mb: 2 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
               <Typography variant="body2" sx={{ color: '#a0a0a0' }}>İşlem Tutarı:</Typography>
-              <Typography variant="body2" fontWeight="bold" sx={{ color: 'white' }}>${balanceErrorData.cost.toFixed(2)}</Typography>
+              <Typography variant="body2" fontWeight="bold" sx={{ color: 'white' }}>${balanceErrorData.cost.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
               <Typography variant="body2" sx={{ color: '#a0a0a0' }}>Mevcut Bakiye:</Typography>
-              <Typography variant="body2" fontWeight="bold" sx={{ color: '#ff5252' }}>${balanceErrorData.balance.toFixed(2)}</Typography>
+              <Typography variant="body2" fontWeight="bold" sx={{ color: '#ff5252' }}>${balanceErrorData.balance.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
             </Box>
           </Box>
 

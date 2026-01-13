@@ -36,6 +36,7 @@ import InputLabel from '@mui/material/InputLabel';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import DonutLargeIcon from '@mui/icons-material/DonutLarge';
+import Pagination from '@mui/material/Pagination';
 
 export default function TargetView() {
   const [startingAmount, setStartingAmount] = useState('');
@@ -54,6 +55,8 @@ export default function TargetView() {
   const [calendarViewDate, setCalendarViewDate] = useState(new Date());
   const [calendarViewMode, setCalendarViewMode] = useState<'day' | 'year'>('day');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [breakdownPage, setBreakdownPage] = useState(1);
+  const [analysisPage, setAnalysisPage] = useState(1);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -132,6 +135,12 @@ export default function TargetView() {
       setDeleteConfirmOpen(false);
     }
   };
+
+  // Tablo verisi değiştiğinde (yıl sayısı değişince) sayfayı başa al
+  useEffect(() => {
+    setBreakdownPage(1);
+    setAnalysisPage(1);
+  }, [years]);
 
   // --- HESAPLAMALAR ---
   const startVal = Number(startingAmount) || 0;
@@ -364,14 +373,20 @@ export default function TargetView() {
     setCalendarViewDate(new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() - 1, 1));
   };
   const handleNextMonth = () => {
-    setCalendarViewDate(new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + 1, 1));
+    const maxDate = new Date(); // Bugün
+    const nextMonthDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + 1, 1);
+    if (nextMonthDate > maxDate) return;
+    setCalendarViewDate(nextMonthDate);
   };
 
   const handlePrevYearPage = () => {
     setCalendarViewDate(new Date(calendarViewDate.getFullYear() - 12, calendarViewDate.getMonth(), 1));
   };
   const handleNextYearPage = () => {
-    setCalendarViewDate(new Date(calendarViewDate.getFullYear() + 12, calendarViewDate.getMonth(), 1));
+    const maxYear = new Date().getFullYear(); // Bugünün yılı
+    const nextYear = calendarViewDate.getFullYear() + 12;
+    if (nextYear - 6 > maxYear) return;
+    setCalendarViewDate(new Date(nextYear, calendarViewDate.getMonth(), 1));
   };
 
   const handleYearClick = (year: number) => {
@@ -408,11 +423,15 @@ export default function TargetView() {
     
     const currentSelected = new Date(startDate);
     const isSameMonth = currentSelected.getMonth() === month && currentSelected.getFullYear() === year;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
     for(let d=1; d<=daysInMonth; d++) {
+      const date = new Date(year, month, d);
+      const isFuture = date > today;
       const isSelected = isSameMonth && currentSelected.getDate() === d;
       const isToday = new Date().getDate() === d && new Date().getMonth() === month && new Date().getFullYear() === year;
-      grid.push({ d, isSelected, isToday });
+      grid.push({ d, isSelected, isToday, isFuture });
     }
     return grid;
   };
@@ -461,7 +480,18 @@ export default function TargetView() {
               fullWidth 
               variant="filled" 
               value={startingAmount}
-              onChange={(e) => setStartingAmount(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                  setStartingAmount(val);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (['+', '-', 'e', 'E'].includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
+              inputProps={{ min: 0 }}
               type="number"
               InputProps={{ 
                 disableUnderline: true,
@@ -541,7 +571,13 @@ export default function TargetView() {
               fullWidth 
               variant="filled" 
               value={years}
-              onChange={(e) => setYears(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                // Boş değer veya 70'ten küçük eşitse güncelle
+                if (val === '' || (Number(val) <= 70)) {
+                  setYears(val);
+                }
+              }}
               type="number"
               InputProps={{ 
                 disableUnderline: true,
@@ -560,7 +596,7 @@ export default function TargetView() {
                   <InputAdornment position="end">
                     <IconButton 
                       size="small"
-                      onClick={() => setYears(prev => ((parseFloat(prev) || 0) + 1).toString())}
+                      onClick={() => setYears(prev => Math.min(70, (parseFloat(prev) || 0) + 1).toString())}
                       sx={{ color: '#a0a0a0', bgcolor: 'rgba(255,255,255,0.05)', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)', color: 'white' } }}
                     >
                       <AddIcon fontSize="small" />
@@ -709,7 +745,7 @@ export default function TargetView() {
                 <Box sx={{ position: 'absolute', top: -10, right: -10, opacity: 0.1 }}><AttachMoneyIcon sx={{ fontSize: 100 }} /></Box>
                 <Typography variant="subtitle2" sx={{ opacity: 0.7, mb: 1 }}>End Balance</Typography>
                 <Typography variant="h4" fontWeight="bold">
-                    ${finalData.balance.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    ${finalData.balance.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Typography>
                 <Typography variant="caption" sx={{ opacity: 0.7, mt: 1, display: 'block' }}>
                     {years} yıl sonundaki tahmini toplam değer.
@@ -720,7 +756,7 @@ export default function TargetView() {
                 <Box sx={{ position: 'absolute', top: -10, right: -10, opacity: 0.1 }}><TrendingUpIcon sx={{ fontSize: 100 }} /></Box>
                 <Typography variant="subtitle2" sx={{ opacity: 0.7, mb: 1 }}>Total Interest</Typography>
                 <Typography variant="h4" fontWeight="bold">
-                    ${finalData.interest.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    ${finalData.interest.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Typography>
                 <Typography variant="caption" sx={{ opacity: 0.7, mt: 1, display: 'block' }}>
                     Toplam kazanılan bileşik faiz.
@@ -764,7 +800,7 @@ export default function TargetView() {
                         <Tooltip
                             contentStyle={{ backgroundColor: 'rgba(20,20,20,0.9)', backdropFilter: 'blur(10px)', borderColor: 'rgba(255,255,255,0.1)', color: 'white', borderRadius: '12px' }}
                             itemStyle={{ color: 'white' }}
-                            formatter={(value: number, name: string) => [`$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`, name]}
+                            formatter={(value: number, name: string) => [`$${value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, name]}
                         />
                         <Area 
                             type="monotone" 
@@ -882,13 +918,13 @@ export default function TargetView() {
                                                 {row.monthStr}
                                             </TableCell>
                                             <TableCell align="right" sx={{ color: 'white' }}>
-                                                ${row.target.toLocaleString()}
+                                                ${row.target.toLocaleString('tr-TR')}
                                             </TableCell>
                                             <TableCell align="right" sx={{ color: row.actual > 0 ? 'white' : '#666' }}>
-                                                ${row.actual.toLocaleString()}
+                                                ${row.actual.toLocaleString('tr-TR')}
                                             </TableCell>
                                             <TableCell align="right" sx={{ color: row.diff >= 0 ? '#00C805' : '#FF3B30', fontWeight: 'bold' }}>
-                                                {row.diff > 0 ? '+' : ''}{row.diff.toLocaleString()}
+                                                {row.diff > 0 ? '+' : ''}{row.diff.toLocaleString('tr-TR')}
                                             </TableCell>
                                             <TableCell align="center">
                                                 {row.isMet ? (
@@ -930,15 +966,15 @@ export default function TargetView() {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {analysisData.map((row) => (
+                        {analysisData.slice((analysisPage - 1) * 12, analysisPage * 12).map((row) => (
                             <TableRow key={row.year} sx={{ '&:last-child td, &:last-child th': { border: 0 }, '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } }}>
                                 <TableCell component="th" scope="row" sx={{ color: 'white', fontWeight: 'bold' }}>{row.year}</TableCell>
-                                <TableCell align="right" sx={{ color: 'white' }}>${row.target.toLocaleString('en-US', { maximumFractionDigits: 0 })}</TableCell>
+                                <TableCell align="right" sx={{ color: 'white' }}>${row.target.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                                 <TableCell align="right" sx={{ color: row.actual !== null ? 'white' : '#666' }}>
-                                    {row.actual !== null ? `$${row.actual.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '-'}
+                                    {row.actual !== null ? `$${row.actual.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                                 </TableCell>
                                 <TableCell align="right" sx={{ color: row.diff >= 0 ? '#00C805' : (row.actual !== null ? '#FF3B30' : '#666'), fontWeight: 'bold' }}>
-                                    {row.actual !== null ? `${row.diff > 0 ? '+' : ''}$${Math.abs(row.diff).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '-'}
+                                    {row.actual !== null ? `${row.diff > 0 ? '+' : ''}$${Math.abs(row.diff).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                                 </TableCell>
                                 <TableCell align="right" sx={{ color: row.diffPct >= 0 ? '#00C805' : (row.actual !== null ? '#FF3B30' : '#666') }}>
                                     {row.actual !== null ? `%${row.diffPct.toFixed(1)}` : '-'}
@@ -959,6 +995,19 @@ export default function TargetView() {
                     </TableBody>
                 </Table>
             </TableContainer>
+            {analysisData.length > 12 && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                    <Pagination 
+                        count={Math.ceil(analysisData.length / 12)} 
+                        page={analysisPage} 
+                        onChange={(_, v) => setAnalysisPage(v)}
+                        sx={{ 
+                            '& .MuiPaginationItem-root': { color: '#a0a0a0' },
+                            '& .Mui-selected': { backgroundColor: 'rgba(255, 255, 255, 0.1) !important', color: 'white' }
+                        }}
+                    />
+                </Box>
+            )}
         </Box>
       )}
 
@@ -977,17 +1026,30 @@ export default function TargetView() {
                     </TableRow>
                 </TableHead>
                 <TableBody>
-                    {tableData.map((row) => (
+                    {tableData.slice((breakdownPage - 1) * 10, breakdownPage * 10).map((row) => (
                         <TableRow key={row.year} sx={{ '&:last-child td, &:last-child th': { border: 0 }, '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } }}>
                             <TableCell component="th" scope="row" sx={{ color: 'white' }}>{row.year}</TableCell>
-                            <TableCell align="right" sx={{ color: 'white' }}>${row.deposit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                            <TableCell align="right" sx={{ color: '#00C805' }}>${row.interest.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                            <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>${row.endingBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                            <TableCell align="right" sx={{ color: 'white' }}>${row.deposit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                            <TableCell align="right" sx={{ color: '#00C805' }}>${row.interest.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                            <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>${row.endingBalance.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
             </Table>
         </TableContainer>
+        {tableData.length > 10 && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                <Pagination 
+                    count={Math.ceil(tableData.length / 10)} 
+                    page={breakdownPage} 
+                    onChange={(_, v) => setBreakdownPage(v)}
+                    sx={{ 
+                        '& .MuiPaginationItem-root': { color: '#a0a0a0' },
+                        '& .Mui-selected': { backgroundColor: 'rgba(255, 255, 255, 0.1) !important', color: 'white' }
+                    }}
+                />
+            </Box>
+        )}
       </Box>
       )}
 
@@ -1043,6 +1105,7 @@ export default function TargetView() {
                         width: 36, height: 36, 
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         borderRadius: '50%', cursor: 'pointer', mx: 'auto',
+                        cursor: 'pointer',
                         bgcolor: item.isSelected ? '#2979ff' : 'transparent',
                         color: item.isSelected ? 'white' : (item.isToday ? '#2979ff' : 'white'),
                         fontWeight: item.isSelected || item.isToday ? 'bold' : 'normal',
@@ -1059,22 +1122,28 @@ export default function TargetView() {
           ) : (
             /* Year Grid */
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, py: 1 }}>
-              {renderYearGrid().map((year) => (
-                <Button
-                  key={year}
-                  onClick={() => handleYearClick(year)}
-                  sx={{ 
-                    color: year === new Date(startDate).getFullYear() ? '#2979ff' : 'white',
-                    fontWeight: year === new Date(startDate).getFullYear() ? 'bold' : 'normal',
-                    bgcolor: year === new Date(startDate).getFullYear() ? 'rgba(41, 121, 255, 0.1)' : 'transparent',
-                    borderRadius: 2,
-                    py: 1.5,
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' }
-                  }}
-                >
-                  {year}
-                </Button>
-              ))}
+              {renderYearGrid().map((year) => {
+                const maxYear = new Date().getFullYear();
+                const isTooFar = year > maxYear;
+                return (
+                  <Button
+                    key={year}
+                    onClick={() => !isTooFar && handleYearClick(year)}
+                    disabled={isTooFar}
+                    sx={{ 
+                      color: isTooFar ? '#666' : (year === new Date(startDate).getFullYear() ? '#2979ff' : 'white'),
+                      fontWeight: year === new Date(startDate).getFullYear() ? 'bold' : 'normal',
+                      bgcolor: year === new Date(startDate).getFullYear() ? 'rgba(41, 121, 255, 0.1)' : 'transparent',
+                      borderRadius: 2,
+                      py: 1.5,
+                      '&:hover': { bgcolor: isTooFar ? 'transparent' : 'rgba(255,255,255,0.1)' },
+                      cursor: isTooFar ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {year}
+                  </Button>
+                );
+              })}
             </Box>
           )}
         </Box>

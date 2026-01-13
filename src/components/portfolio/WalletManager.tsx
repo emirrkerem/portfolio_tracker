@@ -32,6 +32,8 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import SellIcon from '@mui/icons-material/Sell';
 
 export default function WalletManager() {
   const [open, setOpen] = useState(false);
@@ -217,6 +219,28 @@ export default function WalletManager() {
     }
   };
 
+  const getTransactionLabel = (type: string) => {
+    switch(type) {
+      case 'DEPOSIT': return 'Para Yatırma';
+      case 'WITHDRAW': return 'Para Çekme';
+      case 'STOCK_BUY': return 'Hisse Satın Alma';
+      case 'STOCK_SELL': return 'Hisse Satıldı';
+      default: return type;
+    }
+  };
+
+  const getTransactionIcon = (type: string) => {
+    switch(type) {
+      case 'DEPOSIT': return <TrendingUpIcon sx={{ fontSize: 16 }} />;
+      case 'WITHDRAW': return <TrendingDownIcon sx={{ fontSize: 16 }} />;
+      case 'STOCK_BUY': return <ShoppingCartIcon sx={{ fontSize: 16 }} />;
+      case 'STOCK_SELL': return <SellIcon sx={{ fontSize: 16 }} />;
+      default: return <TrendingUpIcon sx={{ fontSize: 16 }} />;
+    }
+  };
+
+  const isPositive = (type: string) => ['DEPOSIT', 'STOCK_SELL'].includes(type);
+
   return (
     <>
       <Button 
@@ -253,23 +277,23 @@ export default function WalletManager() {
                     <Avatar sx={{ 
                       width: 32, 
                       height: 32, 
-                      bgcolor: tx.type === 'DEPOSIT' ? 'rgba(0, 200, 83, 0.1)' : 'rgba(255, 82, 82, 0.1)',
-                      color: tx.type === 'DEPOSIT' ? '#69f0ae' : '#ff8a80',
+                      bgcolor: isPositive(tx.type) ? 'rgba(0, 200, 83, 0.1)' : 'rgba(255, 82, 82, 0.1)',
+                      color: isPositive(tx.type) ? '#69f0ae' : '#ff8a80',
                       border: '1px solid',
-                      borderColor: tx.type === 'DEPOSIT' ? 'rgba(0, 200, 83, 0.2)' : 'rgba(255, 82, 82, 0.2)'
+                      borderColor: isPositive(tx.type) ? 'rgba(0, 200, 83, 0.2)' : 'rgba(255, 82, 82, 0.2)'
                     }}>
-                      {tx.type === 'DEPOSIT' ? <TrendingUpIcon sx={{ fontSize: 16 }} /> : <TrendingDownIcon sx={{ fontSize: 16 }} />}
+                      {getTransactionIcon(tx.type)}
                     </Avatar>
                   </ListItemAvatar>
                   <ListItemText 
-                    primary={tx.type === 'DEPOSIT' ? 'Para Yatırma' : 'Para Çekme'}
+                    primary={getTransactionLabel(tx.type)}
                   secondary={new Date(tx.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     primaryTypographyProps={{ variant: 'body2', fontWeight: 'bold', color: 'white' }}
                     secondaryTypographyProps={{ variant: 'caption', color: '#666' }}
                   />
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="body2" fontWeight="bold" sx={{ color: tx.type === 'DEPOSIT' ? '#69f0ae' : '#ff8a80' }}>
-                      {tx.type === 'DEPOSIT' ? '+' : '-'}${parseFloat(tx.amount).toFixed(2)}
+                    <Typography variant="body2" fontWeight="bold" sx={{ color: isPositive(tx.type) ? '#69f0ae' : '#ff8a80' }}>
+                      {isPositive(tx.type) ? '+' : '-'}${parseFloat(tx.amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </Typography>
                     <IconButton 
                       size="small" 
@@ -478,7 +502,7 @@ export default function WalletManager() {
                   {type === 'DEPOSIT' ? 'Yatırılacak Tutar' : 'Çekilecek Tutar'}
                 </Typography>
                 <Typography variant="h4" fontWeight="bold" sx={{ color: type === 'DEPOSIT' ? '#69f0ae' : '#ff5252' }}>
-                  ${(parseFloat(amount) || 0).toFixed(2)}
+                  ${(parseFloat(amount) || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Typography>
               </Box>
               <Button 
@@ -676,11 +700,11 @@ export default function WalletManager() {
           <Box sx={{ bgcolor: 'rgba(255,255,255,0.05)', p: 2, borderRadius: 2, width: '100%', mb: 2 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
               <Typography variant="body2" sx={{ color: '#a0a0a0' }}>Çekilecek Tutar:</Typography>
-              <Typography variant="body2" fontWeight="bold" sx={{ color: 'white' }}>${Number(amount).toFixed(2)}</Typography>
+              <Typography variant="body2" fontWeight="bold" sx={{ color: 'white' }}>${Number(amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
               <Typography variant="body2" sx={{ color: '#a0a0a0' }}>Mevcut Bakiye:</Typography>
-              <Typography variant="body2" fontWeight="bold" sx={{ color: '#ff5252' }}>${balance.toFixed(2)}</Typography>
+              <Typography variant="body2" fontWeight="bold" sx={{ color: '#ff5252' }}>${balance.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
             </Box>
           </Box>
 

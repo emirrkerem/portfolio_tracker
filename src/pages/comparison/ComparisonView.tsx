@@ -268,7 +268,7 @@ export default function ComparisonView() {
                 <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color }} />
                 <Typography variant="body2" sx={{ color: 'white' }}>
                   {entry.name}: <Box component="span" sx={{ fontWeight: 'bold' }}>
-                    {viewMode === 'return' ? `%${entry.value.toFixed(2)}` : `$${entry.value.toFixed(2)}`}
+                    {viewMode === 'return' ? `%${entry.value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `$${entry.value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                   </Box>
                 </Typography>
               </Box>
@@ -389,10 +389,10 @@ export default function ComparisonView() {
                             fontSize: '40px',
                             lineHeight: '50px'
                         }}>
-                            ${(displayData?.portfolioValue ?? 0).toFixed(2)}
+                            ${(displayData?.portfolioValue ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </Typography>
                         <Typography sx={{ fontSize: '20px', fontWeight: 'bold', color: (displayData?.portfolioProfit ?? 0) >= 0 ? '#00C805' : '#FF3B30' }}>
-                            {(displayData?.portfolioProfit ?? 0) >= 0 ? '+' : ''}{(displayData?.portfolioProfit ?? 0).toFixed(2)} ({(displayData?.portfolioPct ?? 0).toFixed(2)}%)
+                            {(displayData?.portfolioProfit ?? 0) >= 0 ? '+' : ''}{(displayData?.portfolioProfit ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({(displayData?.portfolioPct ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)
                         </Typography>
                     </Box>
                 </Box>
@@ -411,10 +411,10 @@ export default function ComparisonView() {
                             fontSize: '40px',
                             lineHeight: '50px'
                         }}>
-                            ${(displayData?.benchmarkValue ?? 0).toFixed(2)}
+                            ${(displayData?.benchmarkValue ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </Typography>
                         <Typography sx={{ fontSize: '20px', fontWeight: 'bold', color: (displayData?.benchmarkProfit ?? 0) >= 0 ? '#00C805' : '#FF3B30' }}>
-                            {(displayData?.benchmarkProfit ?? 0) >= 0 ? '+' : ''}{(displayData?.benchmarkProfit ?? 0).toFixed(2)} ({(displayData?.benchmarkPct ?? 0).toFixed(2)}%)
+                            {(displayData?.benchmarkProfit ?? 0) >= 0 ? '+' : ''}{(displayData?.benchmarkProfit ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({(displayData?.benchmarkPct ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)
                         </Typography>
                     </Box>
                 </Box>

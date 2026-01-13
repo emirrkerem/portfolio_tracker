@@ -1,5 +1,3 @@
-import { addWalletTransaction } from './walletService';
-
 export const tradeStock = async (symbol: string, quantity: number, price: number, type: 'BUY' | 'SELL', date: string, commission: number) => {
   if (!symbol || quantity <= 0 || price <= 0) return;
 
@@ -26,8 +24,16 @@ export const tradeStock = async (symbol: string, quantity: number, price: number
       })
     });
     
-    // 2. Cüzdan Bakiyesini Güncelle (BUY -> WITHDRAW, SELL -> DEPOSIT)
-    await addWalletTransaction(type === 'BUY' ? 'WITHDRAW' : 'DEPOSIT', walletAmount, date);
+    // 2. Cüzdan Bakiyesini Güncelle (Özel Tiplerle)
+    await fetch('http://localhost:5000/api/wallet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: type === 'BUY' ? 'STOCK_BUY' : 'STOCK_SELL',
+        amount: walletAmount,
+        date
+      })
+    });
 
     // StockChart bileşenini güncellemek için event fırlat
     window.dispatchEvent(new Event('portfolio-updated'));

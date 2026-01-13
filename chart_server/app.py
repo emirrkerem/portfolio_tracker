@@ -578,10 +578,56 @@ def delete_transaction():
                 df = pd.read_csv(TRANSACTIONS_FILE, header=None, names=['symbol', 'quantity', 'price', 'totalCost', 'totalCommission', 'date', 'type'])
             
             if tx_id in df.index:
+                # Silinmeden önce yedeğini al (Wallet sync için)
+                deleted_tx = df.loc[tx_id].to_dict()
+
                 df = df.drop(tx_id)
                 # Kaydederken header durumunu koru
                 has_header = 'symbol' in df.columns
                 df.to_csv(TRANSACTIONS_FILE, index=False, header=has_header)
+                
+                # --- CÜZDAN SENKRONİZASYONU (Wallet Sync) ---
+                # Transaction silindiğinde, ilgili cüzdan kaydını da bul ve sil
+                if os.path.exists(WALLET_FILE):
+                    try:
+                        df_wallet = pd.read_csv(WALLET_FILE)
+                        if 'amount' not in df_wallet.columns:
+                            df_wallet = pd.read_csv(WALLET_FILE, header=None, names=['date', 'type', 'amount'])
+                        
+                        # Silinen işlemden beklenen cüzdan etkisini hesapla
+                        cost = float(deleted_tx['totalCost'])
+                        comm = float(deleted_tx['totalCommission'])
+                        target_amount = 0
+                        target_types = []
+
+                        if deleted_tx['type'] == 'BUY':
+                            target_amount = cost + comm
+                            target_types = ['STOCK_BUY', 'WITHDRAW'] # Yeni ve eski tip desteği
+                        else:
+                            target_amount = max(0, cost - comm)
+                            target_types = ['STOCK_SELL', 'DEPOSIT'] # Yeni ve eski tip desteği
+                        
+                        # Eşleşen kaydı bul: Tarih, Tip ve Tutar aynı olmalı
+                        # Not: Tarih string olduğu için tam eşleşme arıyoruz.
+                        # Float karşılaştırması için küçük bir tolerans (0.01) kullanıyoruz.
+                        tolerance = 0.01
+                        
+                        matches = df_wallet[
+                            (df_wallet['date'] == deleted_tx['date']) & 
+                            (df_wallet['type'].isin(target_types)) &
+                            (abs(df_wallet['amount'] - target_amount) < tolerance)
+                        ]
+                        
+                        if not matches.empty:
+                            # İlk eşleşeni sil
+                            wallet_idx_to_drop = matches.index[0]
+                            df_wallet = df_wallet.drop(wallet_idx_to_drop)
+                            df_wallet.to_csv(WALLET_FILE, index=False)
+                            print(f"Transaction {tx_id} silindiği için Wallet kaydı {wallet_idx_to_drop} da silindi.")
+                            
+                    except Exception as w_e:
+                        print(f"Wallet sync error during delete: {w_e}")
+
                 clear_user_cache() # Veri değişti
                 return jsonify({"status": "success"})
             else:
@@ -653,9 +699,9 @@ def handle_wallet():
                 
                 for t in transactions:
                     amt = float(t.get('amount', 0))
-                    if t.get('type') == 'DEPOSIT':
+                    if t.get('type') in ['DEPOSIT', 'STOCK_SELL']:
                         balance += amt
-                    elif t.get('type') == 'WITHDRAW':
+                    elif t.get('type') in ['WITHDRAW', 'STOCK_BUY']:
                         balance -= amt
                 
                 # Tarihe göre tersten sırala (En yeni en üstte)
@@ -813,7 +859,7 @@ def get_portfolio_history():
                     df_wallet['date'] = df_wallet['date'].dt.floor('h') # Saate yuvarla
 
                 df_wallet['signed_amount'] = df_wallet.apply(
-                    lambda x: x['amount'] if x['type'] == 'DEPOSIT' else -x['amount'], axis=1
+                    lambda x: x['amount'] if x['type'] in ['DEPOSIT', 'STOCK_SELL'] else -x['amount'], axis=1
                 )
                 # Günlük nakit akışını topla
                 cash_series = df_wallet.groupby('date')['signed_amount'].sum()

@@ -216,10 +216,10 @@ export default function PortfolioView() {
               <AttachMoneyIcon sx={{ fontSize: 120 }} />
             </Box>
             <Typography variant="subtitle2" sx={{ opacity: 0.7, mb: 1 }}>Toplam Varlık</Typography>
-            <Typography variant="h3" fontWeight="bold">${totalNetWorth.toFixed(2)}</Typography>
+            <Typography variant="h3" fontWeight="bold">${totalNetWorth.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', mt: 1, gap: 1 }}>
               <Chip 
-                label={`${totalProfit >= 0 ? '+' : ''}${totalProfit.toFixed(2)} (${totalProfitPercent.toFixed(2)}%)`} 
+                label={`${totalProfit >= 0 ? '+' : ''}${totalProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${totalProfitPercent.toFixed(2)}%)`} 
                 size="small"
                 sx={{ 
                   background: totalProfit >= 0 ? 'linear-gradient(45deg, rgba(0, 230, 118, 0.2), rgba(0, 200, 83, 0.3))' : 'linear-gradient(45deg, rgba(255, 23, 68, 0.2), rgba(213, 0, 0, 0.3))',
@@ -248,7 +248,7 @@ export default function PortfolioView() {
               <AccountBalanceWalletIcon sx={{ fontSize: 120 }} />
             </Box>
             <Typography variant="subtitle2" sx={{ opacity: 0.7, mb: 1 }}>Nakit Bakiye (Buying Power)</Typography>
-            <Typography variant="h3" fontWeight="bold">${walletBalance.toFixed(2)}</Typography>
+            <Typography variant="h3" fontWeight="bold">${walletBalance.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
             <Typography variant="caption" sx={{ opacity: 0.7, mt: 1, display: 'block' }}>Kullanılabilir Nakit</Typography>
           </Paper>
         </Box>
@@ -266,7 +266,7 @@ export default function PortfolioView() {
               <DonutLargeIcon sx={{ fontSize: 120 }} />
             </Box>
             <Typography variant="subtitle2" sx={{ opacity: 0.7, mb: 1 }}>Hisse Senedi Değeri</Typography>
-            <Typography variant="h3" fontWeight="bold">${totalEquity.toFixed(2)}</Typography>
+            <Typography variant="h3" fontWeight="bold">${totalEquity.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
             <Typography variant="caption" sx={{ opacity: 0.7, mt: 1, display: 'block' }}>Aktif Yatırımlar</Typography>
           </Paper>
         </Box>
@@ -317,14 +317,14 @@ export default function PortfolioView() {
                           <Typography fontWeight="bold">{item.symbol}</Typography>
                         </Box>
                       </TableCell>
-                      <TableCell align="right" sx={{ color: 'white' }}>{item.quantity.toFixed(2)}</TableCell>
-                      <TableCell align="right" sx={{ color: 'white' }}>${item.averageCost.toFixed(2)}</TableCell>
-                      <TableCell align="right" sx={{ color: 'white' }}>${item.currentPrice?.toFixed(2)}</TableCell>
-                      <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>${item.currentValue?.toFixed(2)}</TableCell>
+                      <TableCell align="right" sx={{ color: 'white' }}>{item.quantity.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                      <TableCell align="right" sx={{ color: 'white' }}>${item.averageCost.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                      <TableCell align="right" sx={{ color: 'white' }}>${item.currentPrice?.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                      <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>${item.currentValue?.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                       <TableCell align="right">
                         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                           <Typography sx={{ color: (item.profit || 0) >= 0 ? '#00e676' : '#ff1744', fontWeight: 'bold' }}>
-                            {(item.profit || 0) >= 0 ? '+' : ''}{(item.profit || 0).toFixed(2)}
+                            {(item.profit || 0) >= 0 ? '+' : ''}{(item.profit || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </Typography>
                           <Typography variant="caption" sx={{ color: (item.profitPercent || 0) >= 0 ? '#00e676' : '#ff1744' }}>
                             {(item.profitPercent || 0).toFixed(2)}%
@@ -376,7 +376,7 @@ export default function PortfolioView() {
                           {tx.type === 'BUY' ? '+' : '-'}{tx.quantity}
                         </Typography>
                         <Typography variant="caption" sx={{ color: '#888' }}>
-                          ${tx.price.toFixed(2)}
+                          ${Number(tx.price).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </Typography>
                       </Box>
                     </ListItem>
@@ -412,7 +412,7 @@ export default function PortfolioView() {
                   <RechartsTooltip 
                     contentStyle={{ backgroundColor: '#1e1e1e', border: 'none', borderRadius: '8px' }}
                     itemStyle={{ color: 'white' }}
-                    formatter={(value: number) => `$${value.toFixed(2)}`}
+                    formatter={(value: number) => `$${value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                   />
                 </PieChart>
               </ResponsiveContainer>

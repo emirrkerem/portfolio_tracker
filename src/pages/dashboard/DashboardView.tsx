@@ -491,7 +491,8 @@ export default function DashboardView() {
   // Güvenli Formatlama Fonksiyonları (Çökme Önleyici)
   const formatPrice = (price: number | undefined | null, currency?: string): string => {
     if (price === undefined || price === null || isNaN(price)) return currency === 'TRY' ? '₺0.0000' : '$0.00';
-    return currency === 'TRY' ? `₺${price.toFixed(4)}` : `$${price.toFixed(2)}`;
+    const formatted = price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return currency === 'TRY' ? `₺${price.toLocaleString('tr-TR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}` : `$${formatted}`;
   };
 
   const formatChange = (change: number | undefined | null): string => {
@@ -1046,7 +1047,7 @@ export default function DashboardView() {
                   />
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                     <Typography variant="body1" fontWeight="bold" color="white">
-                      ${asset.price.toFixed(2)}
+                      ${asset.price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </Typography>
                     <Typography variant="caption" sx={{ color: (asset as any).change >= 0 ? 'success.main' : 'error.main', fontWeight: 'bold' }}>
                       {(asset as any).change > 0 ? '+' : ''}{(asset as any).change.toFixed(2)} ({(asset as any).pctChange.toFixed(2)}%)

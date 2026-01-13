@@ -16,7 +16,6 @@ export default function PortfolioHistoryChart() {
   const [currentInvested, setCurrentInvested] = useState<number | null>(null);
   const [selectedRange, setSelectedRange] = useState('ALL');
   const [walletStats, setWalletStats] = useState({ deposited: 0, withdrawn: 0 });
-  const [stockStats, setStockStats] = useState({ totalBuyCost: 0 });
   
   // Hover State'leri
   const [hoveredValue, setHoveredValue] = useState<number | null>(null);
@@ -66,6 +65,7 @@ export default function PortfolioHistoryChart() {
           data.transactions.forEach((t: any) => {
             if (t.type === 'DEPOSIT') dep += Number(t.amount);
             if (t.type === 'WITHDRAW') wid += Number(t.amount);
+            // STOCK_BUY ve STOCK_SELL buraya dahil edilmez, sadece manuel işlemler
           });
           setWalletStats({ deposited: dep, withdrawn: wid });
         }
@@ -76,27 +76,6 @@ export default function PortfolioHistoryChart() {
     fetchWalletStats();
     window.addEventListener('wallet-updated', fetchWalletStats);
     return () => window.removeEventListener('wallet-updated', fetchWalletStats);
-  }, []);
-
-  // Hisse Alım Maliyetlerini Çek (Toplam Çekilen Hesabını Düzeltmek İçin)
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      try {
-        const res = await fetch('http://localhost:5000/api/transactions');
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          const totalBuy = data
-            .filter((t: any) => t.type === 'BUY')
-            .reduce((acc: number, t: any) => acc + Number(t.totalCost), 0);
-          setStockStats({ totalBuyCost: totalBuy });
-        }
-      } catch (err) {
-        console.error("Transactions fetch error:", err);
-      }
-    };
-    fetchTransactions();
-    window.addEventListener('portfolio-updated', fetchTransactions);
-    return () => window.removeEventListener('portfolio-updated', fetchTransactions);
   }, []);
 
   const handleViewChange = (_: React.MouseEvent<HTMLElement>, newView: 'value' | 'profit') => {
@@ -233,9 +212,8 @@ export default function PortfolioHistoryChart() {
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
   if (data.length === 0) return null;
 
-  // Düzeltilmiş Çekilen Tutar (Hisse alımları düşüldü)
-  const adjustedWithdrawn = Math.max(0, walletStats.withdrawn - stockStats.totalBuyCost);
-  const netInflow = walletStats.deposited - adjustedWithdrawn;
+  // Artık walletStats.withdrawn sadece manuel çekimleri içeriyor
+  const netInflow = walletStats.deposited - walletStats.withdrawn;
 
   return (
     <>
@@ -244,21 +222,21 @@ export default function PortfolioHistoryChart() {
       <Box sx={{ flex: 1, bgcolor: 'black', p: 2.5, borderRadius: 2, border: '1px solid rgba(255,255,255,0.1)' }}>
         <Typography variant="body2" sx={{ color: '#a0a0a0', mb: 0.5 }}>Toplam Yatırılan</Typography>
         <Typography variant="h5" fontWeight="bold" sx={{ color: 'white' }}>
-          ${walletStats.deposited.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          ${walletStats.deposited.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </Typography>
       </Box>
       
       <Box sx={{ flex: 1, bgcolor: 'black', p: 2.5, borderRadius: 2, border: '1px solid rgba(255,255,255,0.1)' }}>
         <Typography variant="body2" sx={{ color: '#a0a0a0', mb: 0.5 }}>Toplam Çekilen</Typography>
         <Typography variant="h5" fontWeight="bold" sx={{ color: 'white' }}>
-          ${adjustedWithdrawn.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          ${walletStats.withdrawn.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </Typography>
       </Box>
 
       <Box sx={{ flex: 1, bgcolor: 'black', p: 2.5, borderRadius: 2, border: '1px solid rgba(255,255,255,0.1)' }}>
         <Typography variant="body2" sx={{ color: '#a0a0a0', mb: 0.5 }}>Net Nakit Girişi</Typography>
         <Typography variant="h5" fontWeight="bold" sx={{ color: '#2196f3' }}>
-          ${netInflow.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          ${netInflow.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </Typography>
       </Box>
     </Box>
@@ -270,14 +248,14 @@ export default function PortfolioHistoryChart() {
             {viewMode === 'value' ? 'Toplam Portföy Değeri' : 'Toplam Kar/Zarar'}
           </Typography>
           <Typography variant="h4" fontWeight="bold" sx={{ color: 'white', display: 'flex', alignItems: 'baseline', flexWrap: 'wrap' }}>
-            ${displayVal.toFixed(2)}
+            ${displayVal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             <Typography 
               component="span" 
               variant="h6" 
               fontWeight="bold" 
               sx={{ color: isProfit ? '#00C805' : '#FF3B30', ml: 2 }}
             >
-              {isProfit ? '+' : ''}${totalProfit.toFixed(2)} ({displayTwr >= 0 ? '+' : ''}{displayTwr.toFixed(2)}%)
+              {isProfit ? '+' : ''}${totalProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({displayTwr >= 0 ? '+' : ''}{displayTwr.toFixed(2)}%)
             </Typography>
           </Typography>
           <Typography variant="body2" sx={{ color: '#a0a0a0', mt: 0.5, height: '20px', fontSize: '0.875rem' }}>
