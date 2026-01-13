@@ -147,6 +147,7 @@ export default function TargetView() {
   const durationYears = Number(years) || 0;
   const rate = Number(returnRate) || 0;
   const monthlyAdd = Number(monthlyContribution) || 0;
+  const totalContribution = startVal + (monthlyAdd * 12 * durationYears);
   
   // YENİ: Başlangıç Yılını Hesapla
   const startYear = useMemo(() => {
@@ -698,6 +699,13 @@ export default function TargetView() {
                 '& input[type=number]::-webkit-inner-spin-button': { WebkitAppearance: 'none', margin: 0 },
               }}
             />
+          </Box>
+
+          <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'rgba(255,255,255,0.03)', p: 1.5, borderRadius: 2 }}>
+            <Typography variant="body2" sx={{ color: '#a0a0a0' }}>Total Contribution:</Typography>
+            <Typography variant="body1" fontWeight="bold" sx={{ color: 'white' }}>
+              ${totalContribution.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </Typography>
           </Box>
 
           <Box sx={{ display: 'flex', gap: 2 }}>
