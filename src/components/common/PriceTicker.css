@@ -1,0 +1,38 @@
+.ticker-container {
+    display: flex;
+    font-size: 40px;
+    line-height: 50px;
+    font-weight: 800;
+    font-family: 'Roboto', sans-serif;
+    letter-spacing: -1px;
+    color: white;
+}
+
+.digit-slot {
+    display: inline-block;
+    height: 50px; /* Should match line-height */
+    overflow: hidden;
+    position: relative;
+    width: 30px;
+    text-align: center;
+}
+
+.digit-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    transition: top 0.3s ease-in-out;
+}
+
+.digit {
+    display: block;
+    height: 50px; /* Should match line-height */
+    line-height: 50px;
+    text-align: center;
+}
+
+.char-slot {
+    display: inline-block;
+    line-height: 50px;
+}

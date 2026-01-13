@@ -1,0 +1,36 @@
+# Bağımlılıklar (Çok yer kaplar, yüklenmez)
+node_modules/
+chart_server/venv/
+chart_server/env/
+
+# Derleme Çıktıları (Herkes kendi bilgisayarında oluşturmalı)
+dist/
+chart_server/build/
+chart_server/dist/
+*.exe
+*.spec
+*.rar
+*.pkg
+*.zip
+*.db
+
+# Python Önbellekleri
+__pycache__/
+*.py[cod]
+
+# Kullanıcı Verileri (ÇOK ÖNEMLİ: Portföyünüzü gizli tutar)
+storage/
+chart_server/storage/
+*.csv
+*.log
+
+# Sistem Dosyaları
+.DS_Store
+Thumbs.db
+
+# IDE Ayarları
+.vscode/
+.idea/
+
+# Gereksiz Raporlar
+.VSCodeCounter/
