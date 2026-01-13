@@ -169,14 +169,26 @@ export default function StockDetailView() {
     setCalendarViewDate(new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() - 1, 1));
   };
   const handleNextMonth = () => {
-    setCalendarViewDate(new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + 1, 1));
+    const today = new Date();
+    const nextMonthDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + 1, 1);
+    // Gelecek ay, bugünün ayından büyükse engelle
+    if (nextMonthDate.getFullYear() > today.getFullYear() || 
+       (nextMonthDate.getFullYear() === today.getFullYear() && nextMonthDate.getMonth() > today.getMonth())) {
+      return;
+    }
+    setCalendarViewDate(nextMonthDate);
   };
 
   const handlePrevYearPage = () => {
     setCalendarViewDate(new Date(calendarViewDate.getFullYear() - 12, calendarViewDate.getMonth(), 1));
   };
   const handleNextYearPage = () => {
-    setCalendarViewDate(new Date(calendarViewDate.getFullYear() + 12, calendarViewDate.getMonth(), 1));
+    const today = new Date();
+    const nextYear = calendarViewDate.getFullYear() + 12;
+    if (nextYear > today.getFullYear()) {
+      return;
+    }
+    setCalendarViewDate(new Date(nextYear, calendarViewDate.getMonth(), 1));
   };
 
   const handleYearClick = (year: number) => {
@@ -221,6 +233,9 @@ export default function StockDetailView() {
   };
 
   const renderCalendarGrid = () => {
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // Gün sonunu baz al
+
     const year = calendarViewDate.getFullYear();
     const month = calendarViewDate.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -234,9 +249,11 @@ export default function StockDetailView() {
     const isSameMonth = currentSelected.getMonth() === month && currentSelected.getFullYear() === year;
     
     for(let d=1; d<=daysInMonth; d++) {
+      const dayDate = new Date(year, month, d);
       const isSelected = isSameMonth && currentSelected.getDate() === d;
       const isToday = new Date().getDate() === d && new Date().getMonth() === month && new Date().getFullYear() === year;
-      grid.push({ d, isSelected, isToday });
+      const isFuture = dayDate > today;
+      grid.push({ d, isSelected, isToday, isFuture });
     }
     return grid;
   };
@@ -418,7 +435,20 @@ export default function StockDetailView() {
               fullWidth
               variant="filled"
               value={buyQuantity}
-              onChange={(e) => setBuyQuantity(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                // Değeri 0'dan küçükse veya geçersiz karakterler içeriyorsa güncellemeyi engelle
+                if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                  setBuyQuantity(value);
+                }
+              }}
+              onKeyDown={(e) => {
+                // +, -, E gibi karakterleri engelle
+                if (['+', '-', 'e', 'E'].includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
+              inputProps={{ min: 0 }} // Tarayıcı seviyesinde minimum değeri ayarla
               InputProps={{ 
                 disableUnderline: true,
                 startAdornment: (
@@ -492,7 +522,18 @@ export default function StockDetailView() {
             fullWidth
             variant="filled"
             value={buyPrice}
-            onChange={(e) => setBuyPrice(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                setBuyPrice(value);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (['+', '-', 'e', 'E'].includes(e.key)) {
+                e.preventDefault();
+              }
+            }}
+            inputProps={{ min: 0 }}
             InputProps={{ 
               disableUnderline: true,
               startAdornment: (
@@ -580,7 +621,18 @@ export default function StockDetailView() {
               fullWidth
               variant="filled"
               value={commission}
-              onChange={(e) => setCommission(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                  setCommission(value);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (['+', '-', 'e', 'E'].includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
+              inputProps={{ min: 0 }}
               InputProps={{ disableUnderline: true }}
               sx={{ 
                 flex: 1,
@@ -682,16 +734,19 @@ export default function StockDetailView() {
                   item.d ? (
                     <Box 
                       key={i} 
-                      onClick={() => handleDayClick(item.d)}
+                      onClick={() => !item.isFuture && handleDayClick(item.d)}
                       sx={{ 
                         width: 36, height: 36, 
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        borderRadius: '50%', cursor: 'pointer', mx: 'auto',
-                        bgcolor: item.isSelected ? '#2979ff' : 'transparent',
-                        color: item.isSelected ? 'white' : (item.isToday ? '#2979ff' : 'white'),
+                        borderRadius: '50%',
+                        cursor: item.isFuture ? 'not-allowed' : 'pointer',
+                        mx: 'auto',
+                        bgcolor: item.isSelected && !item.isFuture ? '#2979ff' : 'transparent',
+                        color: item.isFuture ? '#666' : (item.isSelected ? 'white' : (item.isToday ? '#2979ff' : 'white')),
                         fontWeight: item.isSelected || item.isToday ? 'bold' : 'normal',
                         border: item.isToday && !item.isSelected ? '1px solid #2979ff' : 'none',
-                        '&:hover': { bgcolor: item.isSelected ? '#2979ff' : 'rgba(255,255,255,0.1)' }
+                        opacity: item.isFuture ? 0.6 : 1,
+                        '&:hover': { bgcolor: item.isFuture ? 'transparent' : (item.isSelected ? '#2979ff' : 'rgba(255,255,255,0.1)') }
                       }}
                     >
                       {item.d}
@@ -703,22 +758,27 @@ export default function StockDetailView() {
           ) : (
             /* Year Grid */
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, py: 1 }}>
-              {renderYearGrid().map((year) => (
-                <Button
-                  key={year}
-                  onClick={() => handleYearClick(year)}
-                  sx={{ 
-                    color: year === new Date(transactionDate).getFullYear() ? '#2979ff' : 'white',
-                    fontWeight: year === new Date(transactionDate).getFullYear() ? 'bold' : 'normal',
-                    bgcolor: year === new Date(transactionDate).getFullYear() ? 'rgba(41, 121, 255, 0.1)' : 'transparent',
-                    borderRadius: 2,
-                    py: 1.5,
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' }
-                  }}
-                >
-                  {year}
-                </Button>
-              ))}
+              {renderYearGrid().map((year) => {
+                const isFutureYear = year > new Date().getFullYear();
+                return (
+                  <Button
+                    key={year}
+                    onClick={() => !isFutureYear && handleYearClick(year)}
+                    disabled={isFutureYear}
+                    sx={{ 
+                      color: isFutureYear ? '#666' : (year === new Date(transactionDate).getFullYear() ? '#2979ff' : 'white'),
+                      fontWeight: year === new Date(transactionDate).getFullYear() ? 'bold' : 'normal',
+                      bgcolor: year === new Date(transactionDate).getFullYear() ? 'rgba(41, 121, 255, 0.1)' : 'transparent',
+                      borderRadius: 2,
+                      py: 1.5,
+                      '&:hover': { bgcolor: isFutureYear ? 'transparent' : 'rgba(255,255,255,0.1)' },
+                      cursor: isFutureYear ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {year}
+                  </Button>
+                );
+              })}
             </Box>
           )}
 
