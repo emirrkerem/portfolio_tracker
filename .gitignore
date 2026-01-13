@@ -1,36 +1,33 @@
-# Bağımlılıklar (Çok yer kaplar, yüklenmez)
+# Dependencies
 node_modules/
-chart_server/venv/
-chart_server/env/
+venv/
+env/
 
-# Derleme Çıktıları (Herkes kendi bilgisayarında oluşturmalı)
+# Build Output (React)
 dist/
+build/
+
+# Python
+__pycache__/
+*.pyc
+
+# PyInstaller (Python Build)
 chart_server/build/
 chart_server/dist/
-*.exe
 *.spec
-*.rar
-*.pkg
-*.zip
-*.db
 
-# Python Önbellekleri
-__pycache__/
-*.py[cod]
+# Executables
+*.exe
 
-# Kullanıcı Verileri (ÇOK ÖNEMLİ: Portföyünüzü gizli tutar)
+# User Data / Storage
 storage/
-chart_server/storage/
-*.csv
+
+# Environment Variables & Logs
+.env
 *.log
+npm-debug.log*
+yarn-debug.log*
 
-# Sistem Dosyaları
-.DS_Store
-Thumbs.db
-
-# IDE Ayarları
+# IDE Settings
 .vscode/
 .idea/
-
-# Gereksiz Raporlar
-.VSCodeCounter/
