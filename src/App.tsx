@@ -60,6 +60,9 @@ const Search = styled('div')(({ theme }) => ({
     '& .MuiInputBase-input': {
       textAlign: 'left',
       paddingLeft: `calc(1em + ${theme.spacing(4)})`,
+      [theme.breakpoints.up('md')]: {
+        width: '35ch',
+      },
     }
   }
 }));
