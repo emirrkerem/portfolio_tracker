@@ -276,13 +276,13 @@ export default function PortfolioView() {
         {/* Sol Taraf: Grafik ve Tablo */}
         <Box sx={{ flex: { xs: '1 1 100%', lg: 3 }, minWidth: 0 }}>
           {/* Grafik */}
-          <Paper sx={{ p: 3, mb: 4, borderRadius: 4, bgcolor: '#000000', border: '1px solid rgba(255,255,255,0.05)', width: '1700px' }}>
+          <Paper sx={{ p: 3, mb: 4, borderRadius: 4, bgcolor: '#000000', border: '1px solid rgba(255,255,255,0.05)', width: '100%' }}>
             <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>Portföy Performansı</Typography>
             <PortfolioHistoryChart />
           </Paper>
 
           {/* Varlık Tablosu */}
-          <Paper sx={{ borderRadius: 4, bgcolor: '#000000', border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden', mr: '70px' }}>
+          <Paper sx={{ borderRadius: 4, bgcolor: '#000000', border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden' }}>
             <Box sx={{ p: 3, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
               <Typography variant="h6" fontWeight="bold">Varlıklarım</Typography>
             </Box>
@@ -346,7 +346,7 @@ export default function PortfolioView() {
           </Paper>
 
           {/* Son İşlemler */}
-          <Paper sx={{ p: 3, mt: 4, borderRadius: 4, bgcolor: '#000000', border: '1px solid rgba(255,255,255,0.05)', mr: '70px' }}>
+          <Paper sx={{ p: 3, mt: 4, borderRadius: 4, bgcolor: '#000000', border: '1px solid rgba(255,255,255,0.05)' }}>
             <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>Son İşlemler</Typography>
             <List disablePadding>
               {recentTransactions.length === 0 ? (
@@ -389,7 +389,7 @@ export default function PortfolioView() {
         </Box>
 
         {/* Sağ Taraf: Pasta Grafik ve Cüzdan */}
-        <Box sx={{ flex: { xs: '1 1 100%', lg: 1 }, minWidth: 0, position: 'relative', top: '0px', left: '-20px' }}>
+        <Box sx={{ flex: { xs: '1 1 100%', lg: 1 }, minWidth: 0 }}>
           {/* Varlık Dağılımı */}
           <Paper sx={{ p: 3, mb: 4, borderRadius: 4, bgcolor: '#000000', border: '1px solid rgba(255,255,255,0.05)', minHeight: 300 }}>
             <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>Varlık Dağılımı</Typography>

@@ -129,11 +129,16 @@ function MainLayout() {
     } else {
       newWatchlist = [...watchlist, symbol];
       // Logo çekme isteği gönder (Arka planda)
+      console.log(`Logo fetch requested for: ${symbol}`);
       fetch('http://localhost:5000/api/logo/fetch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol })
-      }).catch(err => console.error("Logo fetch error:", err));
+      })
+      .then(res => {
+        if (!res.ok) console.error("Logo fetch failed on server:", res.status);
+      })
+      .catch(err => console.error("Logo fetch network error:", err));
     }
     setWatchlist(newWatchlist);
     localStorage.setItem('borsa_watchlist', JSON.stringify(newWatchlist));

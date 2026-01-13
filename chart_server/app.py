@@ -29,16 +29,46 @@ else:
 app = Flask(__name__, static_folder=static_folder, static_url_path='')
 CORS(app)
 
+# --- ÖNBELLEKLEME (CACHING) ---
+# API yanıtlarını hafızada tutarak tekrar tekrar indirmeyi önler.
+API_CACHE = {}
+CACHE_DURATION = 300  # 5 Dakika (Saniye cinsinden)
+
+def get_from_cache(key):
+    if key in API_CACHE:
+        data, timestamp = API_CACHE[key]
+        if (datetime.datetime.now() - timestamp).total_seconds() < CACHE_DURATION:
+            return data
+        else:
+            del API_CACHE[key] # Süresi dolmuşsa sil
+    return None
+
+def save_to_cache(key, data):
+    API_CACHE[key] = (data, datetime.datetime.now())
+
+def clear_user_cache():
+    """Kullanıcı verisi değiştiğinde (işlem ekleme vb.) ilgili cache'leri temizler."""
+    keys_to_delete = [k for k in API_CACHE.keys() if k.startswith('user_')]
+    for k in keys_to_delete:
+        if k in API_CACHE:
+            del API_CACHE[k]
+    print(f"[CACHE] Kullanıcı önbelleği temizlendi. ({len(keys_to_delete)} anahtar silindi)")
+
 # --- LOGO YÖNETİMİ ---
-# Logoları hem dist (exe için) hem public (dev için) klasörüne kaydetmeye çalışacağız
-DIST_LOGOS_DIR = os.path.join(static_folder, 'logos')
-os.makedirs(DIST_LOGOS_DIR, exist_ok=True)
+# Logoları kalıcı depolama alanına (storage/logos) kaydedeceğiz.
+LOGOS_DIR = os.path.join(STORAGE_DIR, 'logos')
+os.makedirs(LOGOS_DIR, exist_ok=True)
 
 # Geliştirme ortamı için public klasörü kontrolü
 PUBLIC_LOGOS_DIR = os.path.join(BASE_DIR, '..', 'public', 'logos')
 HAS_PUBLIC = os.path.exists(os.path.join(BASE_DIR, '..', 'public'))
 if HAS_PUBLIC:
     os.makedirs(PUBLIC_LOGOS_DIR, exist_ok=True)
+
+# Logoları sunmak için route (Exe modunda veya Flask serve modunda çalışır)
+@app.route('/logos/<path:filename>')
+def serve_logo(filename):
+    return send_from_directory(LOGOS_DIR, filename)
 
 @app.route('/api/logo/fetch', methods=['POST'])
 def fetch_logo():
@@ -50,33 +80,32 @@ def fetch_logo():
         
         symbol = symbol.upper()
         filename = f"{symbol}.png"
-        dist_path = os.path.join(DIST_LOGOS_DIR, filename)
+        save_path = os.path.join(LOGOS_DIR, filename)
         
-        # Eğer logo zaten varsa işlem yapma
-        if os.path.exists(dist_path):
+        # 1. Kontrol: Logo zaten var mı ve boyutu 0'dan büyük mü? (Bozuk dosyaları tekrar indirsin)
+        if os.path.exists(save_path) and os.path.getsize(save_path) > 0:
+            print(f"[LOGO] {symbol} zaten mevcut: {save_path}")
+            # Dev ortamı için senkronize et
+            if HAS_PUBLIC and not os.path.exists(os.path.join(PUBLIC_LOGOS_DIR, filename)):
+                import shutil
+                shutil.copy2(save_path, os.path.join(PUBLIC_LOGOS_DIR, filename))
             return jsonify({'status': 'exists', 'url': f'/logos/{filename}'})
 
-        # Geliştirme ortamında public klasöründe varsa, oradan al (tekrar indirme)
-        if HAS_PUBLIC:
-            public_path = os.path.join(PUBLIC_LOGOS_DIR, filename)
-            if os.path.exists(public_path):
-                import shutil
-                shutil.copy2(public_path, dist_path)
-                return jsonify({'status': 'exists', 'url': f'/logos/{filename}'})
-
+        print(f"[LOGO] {symbol} için aranıyor...")
         logo_url = None
 
-        # 1. Finnhub API (Öncelikli)
+        # 2. Finnhub API (Öncelikli)
         try:
             finnhub_token = "d5ijfv1r01qo1lb2f000d5ijfv1r01qo1lb2f00g"
-            r = requests.get(f"https://finnhub.io/api/v1/stock/profile2?symbol={symbol}&token={finnhub_token}")
+            r = requests.get(f"https://finnhub.io/api/v1/stock/profile2?symbol={symbol}&token={finnhub_token}", timeout=5)
             if r.status_code == 200:
                 profile = r.json()
                 logo_url = profile.get('logo')
+                if logo_url: print(f"[LOGO] Finnhub'da bulundu: {logo_url}")
         except Exception as e:
-            print(f"Finnhub error for {symbol}: {e}")
+            print(f"[LOGO] Finnhub hatası: {e}")
 
-        # 2. Yahoo Finance / Clearbit (Yedek)
+        # 3. Yahoo Finance / Clearbit (Yedek)
         if not logo_url:
             try:
                 ticker = yf.Ticker(symbol)
@@ -90,25 +119,34 @@ def fetch_logo():
                         from urllib.parse import urlparse
                         domain = urlparse(website).netloc.replace('www.', '')
                         logo_url = f"https://logo.clearbit.com/{domain}"
+                        print(f"[LOGO] Clearbit denenecek: {logo_url}")
             except Exception as e:
-                print(f"YFinance error for {symbol}: {e}")
+                print(f"[LOGO] YFinance hatası: {e}")
 
+        # 4. İndirme ve Kaydetme
         if logo_url:
-            headers = {'User-Agent': 'Mozilla/5.0'}
-            r = requests.get(logo_url, headers=headers, stream=True)
-            if r.status_code == 200:
-                with open(dist_path, 'wb') as f:
-                    for chunk in r.iter_content(1024):
-                        f.write(chunk)
-                # Eğer dev ortamındaysak public'e de kopyala
-                if HAS_PUBLIC:
-                    import shutil
-                    shutil.copy2(dist_path, os.path.join(PUBLIC_LOGOS_DIR, filename))
-                return jsonify({'status': 'downloaded', 'url': f'/logos/{filename}'})
+            try:
+                headers = {'User-Agent': 'Mozilla/5.0'}
+                r = requests.get(logo_url, headers=headers, stream=True, timeout=10)
+                if r.status_code == 200:
+                    with open(save_path, 'wb') as f:
+                        for chunk in r.iter_content(1024):
+                            f.write(chunk)
+                    print(f"[LOGO] Kaydedildi: {save_path}")
+
+                    # Dev ortamı için public'e de kopyala
+                    if HAS_PUBLIC:
+                        import shutil
+                        shutil.copy2(save_path, os.path.join(PUBLIC_LOGOS_DIR, filename))
+                    
+                    return jsonify({'status': 'downloaded', 'url': f'/logos/{filename}'})
+            except Exception as e:
+                print(f"[LOGO] İndirme hatası: {e}")
         
+        print(f"[LOGO] {symbol} için logo bulunamadı.")
         return jsonify({'status': 'not_found'}), 404
     except Exception as e:
-        print(f"Logo fetch error for {symbol}: {e}")
+        print(f"[LOGO] Genel hata: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/stock', methods=['GET'])
@@ -118,6 +156,12 @@ def get_stock_data():
     interval = request.args.get('interval', '1d')
     start = request.args.get('start', None)
     end = request.args.get('end', None)
+
+    # 1. Cache Kontrolü (Veri hafızada var mı?)
+    cache_key = f"stock_{symbol}_{period}_{interval}_{start}_{end}"
+    cached_data = get_from_cache(cache_key)
+    if cached_data:
+        return jsonify(cached_data)
 
     # 1. Önce Yahoo Finance dene
     try:
@@ -154,6 +198,7 @@ def get_stock_data():
                 })
             
             if data:
+                save_to_cache(cache_key, data) # Veriyi hafızaya kaydet
                 return jsonify(data)
 
     except Exception as e:
@@ -171,6 +216,12 @@ def get_market_data():
     else:
         # Varsayılan popüler hisseler (Eğer parametre gelmezse)
         symbols = ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOGL', 'META', 'TSLA', 'AMD', 'NFLX', 'INTC']
+
+    # Cache Kontrolü
+    cache_key = f"market_{','.join(sorted(symbols))}"
+    cached_data = get_from_cache(cache_key)
+    if cached_data:
+        return jsonify(cached_data)
 
     try:
         data = []
@@ -325,6 +376,7 @@ def get_market_data():
                         if res:
                             data.append(res)
                     
+        save_to_cache(cache_key, data) # Veriyi hafızaya kaydet
         return jsonify(data)
 
     except Exception as e:
@@ -396,6 +448,10 @@ os.makedirs(STORAGE_DIR, exist_ok=True)
 def handle_portfolio():
     # GET: İşlemleri oku ve portföy özetini hesapla
     if request.method == 'GET':
+        # Cache Kontrolü
+        cached = get_from_cache('user_portfolio_summary')
+        if cached: return jsonify(cached)
+
         if os.path.exists(TRANSACTIONS_FILE):
             try:
                 df = pd.read_csv(TRANSACTIONS_FILE)
@@ -428,7 +484,9 @@ def handle_portfolio():
                 # Sadece elinde hisse kalanları (quantity > 0) döndür
                 portfolio = portfolio[portfolio['quantity'] > 0]
                 
-                return jsonify(portfolio.to_dict(orient='records'))
+                result = portfolio.to_dict(orient='records')
+                save_to_cache('user_portfolio_summary', result)
+                return jsonify(result)
             except Exception as e:
                 print(f"CSV Okuma Hatası: {e}")
                 return jsonify([])
@@ -465,6 +523,7 @@ def handle_portfolio():
 
             df.to_csv(TRANSACTIONS_FILE, mode='a', header=header, index=False)
             
+            clear_user_cache() # Veri değişti, cache'i temizle
             return jsonify({"status": "success", "data": data})
         except Exception as e:
             print(f"CSV Kayıt Hatası: {e}")
@@ -473,6 +532,10 @@ def handle_portfolio():
 # İşlem Geçmişi (Ham Veri)
 @app.route('/api/transactions', methods=['GET'])
 def get_transactions():
+    # Cache Kontrolü
+    cached = get_from_cache('user_transactions')
+    if cached: return jsonify(cached)
+
     if os.path.exists(TRANSACTIONS_FILE):
         try:
             df = pd.read_csv(TRANSACTIONS_FILE)
@@ -494,7 +557,9 @@ def get_transactions():
                 # Tarihi ISO formatında string'e çevir (Frontend'de düzenlemek için gerekli)
                 df['date'] = df['date'].dt.strftime('%Y-%m-%dT%H:%M')
             
-            return jsonify(df.to_dict(orient='records'))
+            result = df.to_dict(orient='records')
+            save_to_cache('user_transactions', result)
+            return jsonify(result)
         except Exception as e:
             print(f"Transaction Read Error: {e}")
             return jsonify([])
@@ -517,6 +582,7 @@ def delete_transaction():
                 # Kaydederken header durumunu koru
                 has_header = 'symbol' in df.columns
                 df.to_csv(TRANSACTIONS_FILE, index=False, header=has_header)
+                clear_user_cache() # Veri değişti
                 return jsonify({"status": "success"})
             else:
                 return jsonify({"error": "Transaction not found"}), 404
@@ -549,6 +615,7 @@ def update_transaction():
                 
                 has_header = 'symbol' in df.columns
                 df.to_csv(TRANSACTIONS_FILE, index=False, header=has_header)
+                clear_user_cache() # Veri değişti
                 return jsonify({"status": "success"})
             else:
                 return jsonify({"error": "Transaction not found"}), 404
@@ -560,6 +627,10 @@ def update_transaction():
 def handle_wallet():
     # GET: Bakiyeyi Hesapla
     if request.method == 'GET':
+        # Cache Kontrolü
+        cached = get_from_cache('user_wallet')
+        if cached: return jsonify(cached)
+
         if os.path.exists(WALLET_FILE):
             try:
                 if os.path.getsize(WALLET_FILE) == 0:
@@ -591,7 +662,9 @@ def handle_wallet():
                 if 'date' in df.columns:
                     transactions.sort(key=lambda x: x['date'], reverse=True)
                         
-                return jsonify({'balance': balance, 'transactions': transactions})
+                result = {'balance': balance, 'transactions': transactions}
+                save_to_cache('user_wallet', result)
+                return jsonify(result)
             except Exception as e:
                 print(f"Wallet Read Error: {e}")
                 return jsonify({'balance': 0.0, 'transactions': []})
@@ -619,6 +692,7 @@ def handle_wallet():
                         f.write(b'\n')
 
             df.to_csv(WALLET_FILE, mode='a', header=header, index=False)
+            clear_user_cache() # Veri değişti
             return jsonify({"status": "success", "data": new_tx})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
@@ -637,6 +711,7 @@ def handle_wallet():
                     df = df.drop(tx_id)
                     # Kaydederken header durumunu koru veya varsayılan olarak ekle
                     df.to_csv(WALLET_FILE, index=False)
+                    clear_user_cache() # Veri değişti
                     return jsonify({"status": "success"})
                 else:
                     return jsonify({"error": "Transaction not found"}), 404
@@ -647,10 +722,16 @@ def handle_wallet():
 @app.route('/api/targets', methods=['GET', 'POST', 'DELETE'])
 def handle_targets():
     if request.method == 'GET':
+        # Cache Kontrolü
+        cached = get_from_cache('user_targets')
+        if cached: return jsonify(cached)
+
         if os.path.exists(TARGETS_FILE):
             try:
                 with open(TARGETS_FILE, 'r') as f:
-                    return jsonify(json.load(f))
+                    data = json.load(f)
+                    save_to_cache('user_targets', data)
+                    return jsonify(data)
             except:
                 return jsonify({})
         return jsonify({})
@@ -660,6 +741,7 @@ def handle_targets():
             data = request.json
             with open(TARGETS_FILE, 'w') as f:
                 json.dump(data, f)
+            clear_user_cache() # Veri değişti
             return jsonify({"status": "success"})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
@@ -668,6 +750,7 @@ def handle_targets():
         try:
             if os.path.exists(TARGETS_FILE):
                 os.remove(TARGETS_FILE)
+            clear_user_cache() # Veri değişti
             return jsonify({"status": "success"})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
@@ -685,6 +768,7 @@ def reset_all_data():
         if os.path.exists(TARGETS_FILE):
             os.remove(TARGETS_FILE)
             
+        clear_user_cache()
         return jsonify({"status": "success"})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -692,6 +776,10 @@ def reset_all_data():
 # Portföy Tarihçesi (Grafik İçin)
 @app.route('/api/portfolio/history', methods=['GET'])
 def get_portfolio_history():
+    # Cache Kontrolü (En önemli kısım burası, çok işlem yapıyor)
+    cached = get_from_cache('user_portfolio_history')
+    if cached: return jsonify(cached)
+
     try:
         # Veri dosyaları yoksa boş dön
         if not os.path.exists(WALLET_FILE) and not os.path.exists(TRANSACTIONS_FILE):
@@ -861,6 +949,7 @@ def get_portfolio_history():
                 'invested': float(invested_capital.loc[date])
             })
             
+        save_to_cache('user_portfolio_history', result)
         return jsonify(result)
 
     except Exception as e:
