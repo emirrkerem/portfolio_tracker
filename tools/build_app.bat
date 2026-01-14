@@ -25,7 +25,7 @@ python -m pip install --upgrade pip setuptools wheel
 
 echo.
 echo PyInstaller ve Python kutuphaneleri yukleniyor...
-pip install PyInstaller flask flask-cors yfinance pywebview
+pip install PyInstaller flask flask-cors yfinance
 
 echo.
 echo ==========================================
