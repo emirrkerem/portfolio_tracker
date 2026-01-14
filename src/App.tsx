@@ -289,6 +289,18 @@ function MainLayout() {
 }
 
 function App() {
+  // Heartbeat: Uygulama acik oldugu surece backend'e "ben buradayim" sinyali gonder
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetch('http://localhost:5000/api/heartbeat', { method: 'POST' })
+        .catch(() => { 
+          // Hata olursa sessizce gec (Backend kapanmis olabilir)
+        });
+    }, 2000); // 2 saniyede bir sinyal
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />

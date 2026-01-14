@@ -8,6 +8,8 @@ import datetime
 import json
 import sys
 import webbrowser
+import threading
+import time
 from threading import Timer
 
 # --- AYARLAR VE YOL TANIMLAMALARI ---
@@ -57,6 +59,24 @@ def clear_user_cache():
         if k in API_CACHE:
             del API_CACHE[k]
     print(f"[CACHE] Kullanıcı önbelleği temizlendi. ({len(keys_to_delete)} anahtar silindi)")
+
+# --- HEARTBEAT (OTOMATIK KAPATMA) ---
+# Frontend kapandiginda backend'in de kapanmasi icin
+last_heartbeat = time.time() + 15  # Baslangicta 15 saniye mühlet
+
+@app.route('/api/heartbeat', methods=['POST'])
+def heartbeat():
+    global last_heartbeat
+    last_heartbeat = time.time()
+    return jsonify({"status": "alive"})
+
+def monitor_heartbeat():
+    global last_heartbeat
+    while True:
+        time.sleep(1)
+        # Eger son sinyalden 5 saniye gectiyse ve program exe modundaysa kapat
+        if time.time() - last_heartbeat > 5:
+            os._exit(0)
 
 # --- LOGO YÖNETİMİ ---
 # Logoları kalıcı depolama alanına (storage/logos) kaydedeceğiz.
@@ -1125,6 +1145,10 @@ def serve():
 if __name__ == '__main__':
     # Eğer .exe ise tarayıcıyı otomatik aç
     if getattr(sys, 'frozen', False):
+        # Monitor thread'i baslat (Arka planda calisip kapanmayi kontrol eder)
+        t = threading.Thread(target=monitor_heartbeat, daemon=True)
+        t.start()
+
         Timer(1.5, lambda: webbrowser.open("http://localhost:5000")).start()
         app.run(port=5000, debug=False)
     else:
