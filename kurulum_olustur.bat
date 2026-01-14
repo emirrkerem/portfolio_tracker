@@ -49,11 +49,17 @@ if errorlevel 1 (
     exit /b
 )
 
+:: 4. Dosyayi Ana Dizine Tasi
+if exist "Output\BorsaApp_Kurulum.exe" (
+    move /Y "Output\BorsaApp_Kurulum.exe" "BorsaApp_Kurulum.exe"
+    rmdir "Output" >nul 2>&1
+)
+
 echo.
 color 2f
 echo ==========================================
 echo ISLEM BASARILI!
 echo ==========================================
-echo "Output" klasorunde "BorsaApp_Kurulum.exe" dosyasi olusturuldu.
-explorer /select,"Output\BorsaApp_Kurulum.exe"
+echo "BorsaApp_Kurulum.exe" dosyasi ana klasorde olusturuldu.
+explorer /select,"BorsaApp_Kurulum.exe"
 pause
