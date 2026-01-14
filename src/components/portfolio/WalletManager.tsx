@@ -616,13 +616,13 @@ export default function WalletManager() {
                       sx={{ 
                         width: 36, height: 36, 
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        borderRadius: '50%', cursor: 'pointer', mx: 'auto',
+                        borderRadius: '50%', mx: 'auto',
                         bgcolor: item.isSelected && !item.isFuture ? '#2979ff' : 'transparent',
                         color: item.isFuture ? '#444' : (item.isSelected ? 'white' : (item.isToday ? '#2979ff' : 'white')),
                         fontWeight: item.isSelected || item.isToday ? 'bold' : 'normal',
                         border: item.isToday && !item.isSelected ? '1px solid #2979ff' : 'none',
                         cursor: item.isFuture ? 'default' : 'pointer',
-                        '&:hover': { bgcolor: !item.isFuture && (item.isSelected ? '#2979ff' : 'rgba(255,255,255,0.1)') }
+                        '&:hover': { bgcolor: item.isFuture ? 'transparent' : (item.isSelected ? '#2979ff' : 'rgba(255,255,255,0.1)') }
                       }}
                     >
                       {item.d}
@@ -646,7 +646,7 @@ export default function WalletManager() {
                       bgcolor: year === new Date(date).getFullYear() ? 'rgba(41, 121, 255, 0.1)' : 'transparent',
                       borderRadius: 2,
                       py: 1.5,
-                      '&:hover': { bgcolor: !isFutureYear && 'rgba(255,255,255,0.1)' }
+                      '&:hover': { bgcolor: isFutureYear ? 'transparent' : 'rgba(255,255,255,0.1)' }
                     }}
                   >
                     {year}

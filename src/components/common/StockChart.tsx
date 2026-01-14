@@ -562,7 +562,7 @@ export default function StockChart({ symbol, height = '320px', onPriceUpdate }: 
                       fontWeight: year === new Date(editForm.date).getFullYear() ? 'bold' : 'normal', 
                       bgcolor: year === new Date(editForm.date).getFullYear() ? 'rgba(41, 121, 255, 0.1)' : 'transparent', 
                       borderRadius: 2, py: 1.5, 
-                      '&:hover': { bgcolor: !isFutureYear && 'rgba(255,255,255,0.1)' } 
+                      '&:hover': { bgcolor: isFutureYear ? 'transparent' : 'rgba(255,255,255,0.1)' } 
                     }}
                   >
                     {year}
