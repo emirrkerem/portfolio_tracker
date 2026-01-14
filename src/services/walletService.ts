@@ -8,26 +8,15 @@ export const getWalletBalance = async () => {
   }
 };
 
-export const addWalletTransaction = async (type: 'DEPOSIT' | 'WITHDRAW', amount: number, date?: string) => {
+export const addWalletTransaction = async (type: 'DEPOSIT' | 'WITHDRAW', amount: number) => {
   try {
     await fetch('http://localhost:5000/api/wallet', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, amount, date })
+      body: JSON.stringify({ type, amount })
     });
     window.dispatchEvent(new Event('wallet-updated'));
   } catch (error) {
     console.error("Wallet transaction error:", error);
-  }
-};
-
-export const deleteWalletTransaction = async (id: number) => {
-  try {
-    await fetch(`http://localhost:5000/api/wallet?id=${id}`, {
-      method: 'DELETE',
-    });
-    window.dispatchEvent(new Event('wallet-updated'));
-  } catch (error) {
-    console.error("Wallet delete error:", error);
   }
 };
