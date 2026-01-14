@@ -1,19 +1,39 @@
+import sys
+import os
+import traceback
+import datetime
+
+# --- KRITIK HATA YAKALAYICI (EN USTTE OLMALI) ---
+# Uygulama acilirken (import asamasinda bile) cokerse rapor olusturur.
+def global_exception_handler(exc_type, exc_value, exc_traceback):
+    try:
+        # Masaustu yolunu bul (Windows/Mac/Linux uyumlu)
+        desktop = os.path.join(os.path.expanduser("~"), 'Desktop')
+        error_path = os.path.join(desktop, 'BORSA_HATA_RAPORU.txt')
+        
+        with open(error_path, 'w', encoding='utf-8') as f:
+            f.write(f"ZAMAN: {datetime.datetime.now()}\n")
+            f.write("--------------------------------------------------\n")
+            f.write(f"HATA: {exc_value}\n")
+            f.write("--------------------------------------------------\n")
+            traceback.print_exception(exc_type, exc_value, exc_traceback, file=f)
+    except:
+        pass
+
+sys.excepthook = global_exception_handler
+
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import requests
 import yfinance as yf
 import pandas as pd
-import os
-import datetime
 import json
-import sys
 import webbrowser
 import threading
 import time
 from threading import Timer
 import logging
 from logging.handlers import RotatingFileHandler
-import traceback
 
 # --- AYARLAR VE YOL TANIMLAMALARI ---
 if getattr(sys, 'frozen', False):
@@ -1179,7 +1199,8 @@ if __name__ == '__main__':
             t = threading.Thread(target=monitor_heartbeat, daemon=True)
             t.start()
 
-            Timer(2.0, lambda: webbrowser.open("http://localhost:5000")).start()
+            # Tarayiciyi acmadan once 4 saniye bekle (Sunucunun hazir olmasi icin)
+            Timer(4.0, lambda: webbrowser.open("http://localhost:5000")).start()
             app.run(port=5000, debug=False)
         else:
             app.run(port=5000, debug=True)
