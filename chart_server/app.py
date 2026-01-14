@@ -1145,11 +1145,19 @@ def serve():
 if __name__ == '__main__':
     # Eğer .exe ise tarayıcıyı otomatik aç
     if getattr(sys, 'frozen', False):
-        # Monitor thread'i baslat (Arka planda calisip kapanmayi kontrol eder)
-        t = threading.Thread(target=monitor_heartbeat, daemon=True)
+        import webview
+        
+        # Flask'i arka planda (ayri bir thread'de) baslat
+        t = threading.Thread(target=lambda: app.run(port=5000, debug=False, use_reloader=False))
+        t.daemon = True
         t.start()
 
-        Timer(1.5, lambda: webbrowser.open("http://localhost:5000")).start()
-        app.run(port=5000, debug=False)
+        # Kendi penceresini olustur ve baslat
+        # Bu islem bloklayicidir, pencere kapanana kadar kod burada bekler
+        webview.create_window("Borsa Uygulaması", "http://localhost:5000", width=1280, height=800)
+        webview.start()
+        
+        # Pencere kapandiginda uygulamayi tamamen oldur
+        os._exit(0)
     else:
         app.run(port=5000, debug=True)

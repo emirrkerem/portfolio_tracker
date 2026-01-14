@@ -21,7 +21,7 @@ if %errorlevel% neq 0 (
 
 echo.
 echo PyInstaller ve Python kutuphaneleri yukleniyor...
-pip install PyInstaller flask flask-cors yfinance
+pip install PyInstaller flask flask-cors yfinance pywebview
 
 echo.
 echo ==========================================
