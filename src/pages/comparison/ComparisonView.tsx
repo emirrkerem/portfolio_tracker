@@ -385,14 +385,17 @@ export default function ComparisonView() {
                             fontFamily: 'Roboto, sans-serif',
                             fontStyle: 'normal',
                             fontWeight: 800,
-                            color: 'rgb(255, 255, 255)',
+                            color: viewMode === 'return' ? ((displayData?.portfolioPct ?? 0) >= 0 ? '#00C805' : '#FF3B30') : ((displayData?.portfolioProfit ?? 0) >= 0 ? '#00C805' : '#FF3B30'),
                             fontSize: '40px',
                             lineHeight: '50px'
                         }}>
-                            ${(displayData?.portfolioValue ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {viewMode === 'return' 
+                                ? `${(displayData?.portfolioPct ?? 0) >= 0 ? '+' : ''}${(displayData?.portfolioPct ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
+                                : `${(displayData?.portfolioProfit ?? 0) >= 0 ? '+' : ''}${(displayData?.portfolioProfit ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                            }
                         </Typography>
-                        <Typography sx={{ fontSize: '20px', fontWeight: 'bold', color: (displayData?.portfolioProfit ?? 0) >= 0 ? '#00C805' : '#FF3B30' }}>
-                            {(displayData?.portfolioProfit ?? 0) >= 0 ? '+' : ''}{(displayData?.portfolioProfit ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({(displayData?.portfolioPct ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)
+                        <Typography sx={{ fontSize: '20px', fontWeight: 'bold', color: 'white' }}>
+                            ${(displayData?.portfolioValue ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </Typography>
                     </Box>
                 </Box>
@@ -407,14 +410,17 @@ export default function ComparisonView() {
                             fontFamily: 'Roboto, sans-serif',
                             fontStyle: 'normal',
                             fontWeight: 800,
-                            color: 'rgb(255, 255, 255)',
+                            color: viewMode === 'return' ? ((displayData?.benchmarkPct ?? 0) >= 0 ? '#00C805' : '#FF3B30') : ((displayData?.benchmarkProfit ?? 0) >= 0 ? '#00C805' : '#FF3B30'),
                             fontSize: '40px',
                             lineHeight: '50px'
                         }}>
-                            ${(displayData?.benchmarkValue ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {viewMode === 'return' 
+                                ? `${(displayData?.benchmarkPct ?? 0) >= 0 ? '+' : ''}${(displayData?.benchmarkPct ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
+                                : `${(displayData?.benchmarkProfit ?? 0) >= 0 ? '+' : ''}${(displayData?.benchmarkProfit ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                            }
                         </Typography>
-                        <Typography sx={{ fontSize: '20px', fontWeight: 'bold', color: (displayData?.benchmarkProfit ?? 0) >= 0 ? '#00C805' : '#FF3B30' }}>
-                            {(displayData?.benchmarkProfit ?? 0) >= 0 ? '+' : ''}{(displayData?.benchmarkProfit ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({(displayData?.benchmarkPct ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)
+                        <Typography sx={{ fontSize: '20px', fontWeight: 'bold', color: 'white' }}>
+                            ${(displayData?.benchmarkValue ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </Typography>
                     </Box>
                 </Box>

@@ -247,15 +247,19 @@ export default function PortfolioHistoryChart() {
           <Typography variant="subtitle2" sx={{ color: '#a0a0a0' }}>
             {viewMode === 'value' ? 'Toplam Portföy Değeri' : 'Toplam Kar/Zarar'}
           </Typography>
-          <Typography variant="h4" fontWeight="bold" sx={{ color: 'white', display: 'flex', alignItems: 'baseline', flexWrap: 'wrap' }}>
-            ${displayVal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <Typography variant="h4" fontWeight="bold" sx={{ color: viewMode === 'value' ? 'white' : (isProfit ? '#00C805' : '#FF3B30'), display: 'flex', alignItems: 'baseline', flexWrap: 'wrap' }}>
+            {viewMode === 'value' 
+              ? `$${displayVal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              : `${isProfit ? '+' : ''}$${totalProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            }
             <Typography 
               component="span" 
               variant="h6" 
               fontWeight="bold" 
               sx={{ color: isProfit ? '#00C805' : '#FF3B30', ml: 2 }}
             >
-              {isProfit ? '+' : ''}${totalProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({displayTwr >= 0 ? '+' : ''}{displayTwr.toFixed(2)}%)
+              {viewMode === 'value' && <>{isProfit ? '+' : ''}${totalProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} </>}
+              ({displayTwr >= 0 ? '+' : ''}{displayTwr.toFixed(2)}%)
             </Typography>
           </Typography>
           
