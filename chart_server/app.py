@@ -68,7 +68,12 @@ if HAS_PUBLIC:
 # Logoları sunmak için route (Exe modunda veya Flask serve modunda çalışır)
 @app.route('/logos/<path:filename>')
 def serve_logo(filename):
-    return send_from_directory(LOGOS_DIR, filename)
+    # 1. Once indirilenler klasorune bak (storage/logos)
+    if os.path.exists(os.path.join(LOGOS_DIR, filename)):
+        return send_from_directory(LOGOS_DIR, filename)
+    
+    # 2. Yoksa uygulamanin icindeki statik klasore bak (dist/logos)
+    return send_from_directory(os.path.join(app.static_folder, 'logos'), filename)
 
 @app.route('/api/logo/fetch', methods=['POST'])
 def fetch_logo():
