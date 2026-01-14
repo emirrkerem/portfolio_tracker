@@ -258,6 +258,17 @@ export default function PortfolioHistoryChart() {
               {isProfit ? '+' : ''}${totalProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({displayTwr >= 0 ? '+' : ''}{displayTwr.toFixed(2)}%)
             </Typography>
           </Typography>
+          
+          {/* Ana Para Gösterimi (Sadece Net Worth Modunda) */}
+          {viewMode === 'value' && (
+             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+               <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#2196f3' }} />
+               <Typography variant="body2" sx={{ color: '#a0a0a0', fontWeight: 'bold' }}>
+                 Ana Para: <span style={{ color: 'white' }}>${displayInv.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+               </Typography>
+             </Box>
+          )}
+
           <Typography variant="body2" sx={{ color: '#a0a0a0', mt: 0.5, height: '20px', fontSize: '0.875rem' }}>
             {hoveredDate ? formatDate(hoveredDate) : ' '}
           </Typography>
@@ -296,6 +307,11 @@ export default function PortfolioHistoryChart() {
               <stop offset="5%" stopColor={chartColor} stopOpacity={0.2}/>
               <stop offset="95%" stopColor={chartColor} stopOpacity={0}/>
             </linearGradient>
+
+            <linearGradient id="investedColor" x1="0" y1="0" x2="0" y2="1">
+               <stop offset="5%" stopColor="#2196f3" stopOpacity={0.2}/>
+               <stop offset="95%" stopColor="#2196f3" stopOpacity={0}/>
+            </linearGradient>
             
             <linearGradient id="portSplitColor" x1="0" y1="0" x2="0" y2="1">
               <stop offset={off} stopColor="#00C805" stopOpacity={0.2} />
@@ -316,6 +332,19 @@ export default function PortfolioHistoryChart() {
           
           {viewMode === 'profit' && <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />}
           
+          {/* Ana Para Alanı (Sadece Net Worth Modunda) */}
+          {viewMode === 'value' && (
+            <Area 
+              type="monotone" 
+              dataKey="invested" 
+              stroke="#2196f3" 
+              strokeWidth={2}
+              fillOpacity={1} 
+              fill="url(#investedColor)" 
+              isAnimationActive={false}
+            />
+          )}
+
           <Area 
             type="monotone" 
             dataKey="displayValue" 
