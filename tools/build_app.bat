@@ -1,10 +1,14 @@
 @echo off
-set "PROJECT_ROOT=%~dp0"
+:: Scriptin oldugu klasor (tools)
+set "SCRIPT_DIR=%~dp0"
+:: Proje ana dizini (bir ust klasor)
+set "PROJECT_ROOT=%SCRIPT_DIR%..\"
 set "ICON_PATH=%PROJECT_ROOT%icon.ico"
 
 echo ==========================================
 echo 0. Gerekli Kutuphaneler Yukleniyor...
 echo ==========================================
+:: Ana dizine git
 cd /d "%PROJECT_ROOT%"
 
 echo NPM paketleri yukleniyor (Bu islem biraz surebilir)...
@@ -51,7 +55,4 @@ move /Y "dist\BorsaApp.exe" "%PROJECT_ROOT%BorsaApp.exe"
 echo.
 echo ISLEM TAMAMLANDI! BorsaApp.exe ana klasore tasindi.
 cd /d "%PROJECT_ROOT%"
-start "" "."
 pause
-
-:: Run this script

@@ -25,15 +25,13 @@ if exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" (
     exit /b
 )
 
-:: 2. BorsaApp.exe Kontrolu
-if not exist "BorsaApp.exe" (
-    echo [BILGI] BorsaApp.exe bulunamadi, once derleme yapiliyor...
-    call build_app.bat
-    if errorlevel 1 (
-        echo [HATA] Derleme basarisiz oldu.
-        pause
-        exit /b
-    )
+:: 2. Her zaman yeniden derle (Kod degisikliklerini almak icin)
+echo [BILGI] Uygulama derleniyor...
+call build_app.bat
+if errorlevel 1 (
+    echo [HATA] Derleme basarisiz oldu.
+    pause
+    exit /b
 )
 
 :: 3. Kurulum Dosyasini Olustur
@@ -49,11 +47,14 @@ if errorlevel 1 (
     exit /b
 )
 
-:: 4. Dosyayi Ana Dizine Tasi
+:: 4. Dosyayi Ana Dizine Tasi (tools/Output -> Ana Dizin)
 if exist "Output\BorsaApp_Kurulum.exe" (
-    move /Y "Output\BorsaApp_Kurulum.exe" "BorsaApp_Kurulum.exe"
+    move /Y "Output\BorsaApp_Kurulum.exe" "..\BorsaApp_Kurulum.exe"
     rmdir "Output" >nul 2>&1
 )
+
+:: 5. Temizlik: Ara dosyayi sil (Ana dizindeki BorsaApp.exe)
+if exist "..\BorsaApp.exe" del "..\BorsaApp.exe"
 
 echo.
 color 2f
@@ -61,5 +62,5 @@ echo ==========================================
 echo ISLEM BASARILI!
 echo ==========================================
 echo "BorsaApp_Kurulum.exe" dosyasi ana klasorde olusturuldu.
-explorer /select,"BorsaApp_Kurulum.exe"
+explorer /select,"..\BorsaApp_Kurulum.exe"
 pause

@@ -16,8 +16,8 @@ OutputBaseFilename=BorsaApp_Kurulum
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
-; Varsa ikon dosyasini kullan
-SetupIconFile=icon.ico
+; Varsa ikon dosyasini kullan (Bir ust klasorde)
+SetupIconFile=..\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
 [Languages]
@@ -27,10 +27,10 @@ Name: "turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-; Ana exe dosyasi
-Source: "BorsaApp.exe"; DestDir: "{app}"; Flags: ignoreversion
-; Ikon dosyasi (varsa)
-Source: "icon.ico"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+; Ana exe dosyasi (Bir ust klasorde olusuyor)
+Source: "..\BorsaApp.exe"; DestDir: "{app}"; Flags: ignoreversion
+; Ikon dosyasi (Bir ust klasorde)
+Source: "..\icon.ico"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icon.ico"
