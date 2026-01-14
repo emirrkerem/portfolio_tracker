@@ -20,3 +20,5 @@ export const addWalletTransaction = async (type: 'DEPOSIT' | 'WITHDRAW', amount:
     console.error("Wallet transaction error:", error);
   }
 };
+
+<!-- initial -->
