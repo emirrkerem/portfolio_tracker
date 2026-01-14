@@ -16,6 +16,9 @@ if getattr(sys, 'frozen', False):
     # React dosyaları geçici klasörde (sys._MEIPASS) bulunur
     static_folder = os.path.join(sys._MEIPASS, 'dist')
     
+    # BASE_DIR tanimlamasi (Asagida kullanildigi icin gerekli)
+    BASE_DIR = os.path.dirname(sys.executable)
+
     # Veritabanı (storage) kullanıcı klasöründe oluşsun (Program Files yazma izni sorunu için)
     # %APPDATA%/BorsaApp/storage
     app_data_dir = os.path.join(os.getenv('APPDATA'), 'BorsaApp')
