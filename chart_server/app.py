@@ -783,6 +783,52 @@ def handle_wallet():
                     df = pd.read_csv(WALLET_FILE, header=None, names=['date', 'type', 'amount'])
                 
                 if tx_id in df.index:
+                    # --- SENKRONIZASYON BASLANGIC ---
+                    # Cüzdandan silinen kayıt bir hisse işlemiyse (STOCK_BUY/STOCK_SELL),
+                    # portföyden de ilgili hisse işlemini bulup silelim.
+                    try:
+                        deleted_row = df.loc[tx_id]
+                        w_type = deleted_row['type']
+                        w_date = deleted_row['date']
+                        w_amount = float(deleted_row['amount'])
+
+                        if w_type in ['STOCK_BUY', 'STOCK_SELL'] and os.path.exists(TRANSACTIONS_FILE):
+                            df_tx = pd.read_csv(TRANSACTIONS_FILE)
+                            # Header check for transactions
+                            if not df_tx.empty and 'symbol' not in df_tx.columns and len(df_tx.columns) == 7:
+                                df_tx = pd.read_csv(TRANSACTIONS_FILE, header=None, names=['symbol', 'quantity', 'price', 'totalCost', 'totalCommission', 'date', 'type'])
+                            
+                            if not df_tx.empty:
+                                # Hedef işlem tipi (Cüzdanda STOCK_BUY ise Portföyde BUY'dır)
+                                target_tx_type = 'BUY' if w_type == 'STOCK_BUY' else 'SELL'
+                                
+                                # Eşleşme bulma (Tarih ve Tutar üzerinden)
+                                # BUY ise: Cost + Comm = Wallet Amount
+                                # SELL ise: Cost - Comm = Wallet Amount
+                                tolerance = 0.01
+                                match_idx = None
+                                
+                                for idx, row in df_tx.iterrows():
+                                    if row['type'] != target_tx_type: continue
+                                    if row['date'] != w_date: continue
+                                    
+                                    cost = float(row['totalCost'])
+                                    comm = float(row['totalCommission'])
+                                    calc_amt = (cost + comm) if target_tx_type == 'BUY' else max(0, cost - comm)
+                                    
+                                    if abs(calc_amt - w_amount) < tolerance:
+                                        match_idx = idx
+                                        break
+                                
+                                if match_idx is not None:
+                                    df_tx = df_tx.drop(match_idx)
+                                    has_header = 'symbol' in df_tx.columns
+                                    df_tx.to_csv(TRANSACTIONS_FILE, index=False, header=has_header)
+                                    print(f"[SYNC] Cüzdan kaydı {tx_id} silindiği için işlem {match_idx} de silindi.")
+                    except Exception as sync_err:
+                        print(f"Sync error: {sync_err}")
+                    # --- SENKRONIZASYON BITIS ---
+
                     df = df.drop(tx_id)
                     # Kaydederken header durumunu koru veya varsayılan olarak ekle
                     df.to_csv(WALLET_FILE, index=False)

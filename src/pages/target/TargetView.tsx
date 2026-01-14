@@ -801,7 +801,7 @@ export default function TargetView() {
                 <Box sx={{ position: 'absolute', top: -10, right: -10, opacity: 0.1 }}><DonutLargeIcon sx={{ fontSize: 100 }} /></Box>
                 <Typography variant="subtitle2" sx={{ opacity: 0.7, mb: 1 }}>Progress</Typography>
                 <Typography variant="h4" fontWeight="bold">
-                    %{progressPercentage.toFixed(1)}
+                    %{progressPercentage.toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                 </Typography>
                 <Typography variant="caption" sx={{ opacity: 0.7, mt: 1, display: 'block' }}>
                     Hedefe ulaşma oranı.
@@ -1011,7 +1011,7 @@ export default function TargetView() {
                                     {row.actual !== null ? `${row.diff > 0 ? '+' : ''}$${Math.abs(row.diff).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                                 </TableCell>
                                 <TableCell align="right" sx={{ color: row.diffPct >= 0 ? '#00C805' : (row.actual !== null ? '#FF3B30' : '#666') }}>
-                                    {row.actual !== null ? `%${row.diffPct.toFixed(1)}` : '-'}
+                                    {row.actual !== null ? `%${row.diffPct.toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}` : '-'}
                                 </TableCell>
                                 <TableCell align="center">
                                     {row.status === 'success' && <CheckCircleIcon sx={{ color: '#00C805' }} titleAccess="Hedef Tuttu" />}

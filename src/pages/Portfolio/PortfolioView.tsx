@@ -126,6 +126,17 @@ export default function PortfolioView() {
         setPortfolio([]);
         setTotalEquity(0);
         setTotalProfit(0);
+        
+        // Veri bos olsa bile cache'i guncelle (Eski verilerin kalmasini onle)
+        const cacheData = {
+          portfolio: [],
+          walletBalance: walletData.balance || 0,
+          totalEquity: 0,
+          totalProfit: 0,
+          recentTransactions: Array.isArray(txData) ? txData.slice(0, 5) : [],
+          allTransactions: Array.isArray(txData) ? txData : []
+        };
+        localStorage.setItem('portfolio_view_cache', JSON.stringify(cacheData));
       }
     } catch (error) {
       console.error("Portföy verisi çekilemedi:", error);

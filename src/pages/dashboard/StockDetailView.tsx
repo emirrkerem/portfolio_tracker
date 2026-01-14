@@ -29,8 +29,6 @@ import InputLabel from '@mui/material/InputLabel';
 import StockChart from '../../components/common/StockChart';
 import { tradeStock } from '../../services/portfolioService';
 import { getWalletBalance } from '../../services/walletService';
-import PriceTicker from '../../components/common/PriceTicker';
-import '../../components/common/PriceTicker.css';
 
 interface StockData {
   symbol: string;
@@ -405,7 +403,9 @@ export default function StockDetailView() {
                 {displaySymbol}
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, ml: 1 }}>
-                <PriceTicker price={displayPrice} />
+                <Typography variant="h4" fontWeight="bold">
+                  ${displayPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </Typography>
                 <Box sx={{ 
                   background: isPositive ? 'linear-gradient(45deg, rgba(0, 230, 118, 0.2), rgba(0, 200, 83, 0.3))' : 'linear-gradient(45deg, rgba(255, 23, 68, 0.2), rgba(213, 0, 0, 0.3))',
                   color: isPositive ? '#00e676' : '#ff1744',
@@ -415,7 +415,9 @@ export default function StockDetailView() {
                   border: '1px solid',
                   borderColor: isPositive ? 'rgba(0, 230, 118, 0.3)' : 'rgba(255, 23, 68, 0.3)'
                 }}>
-                  {isPositive ? '+' : ''}{displayChange.toFixed(2)} ({isPositive ? '+' : ''}{displayPercent.toFixed(2)}%)
+                  {isPositive ? '+' : ''}{displayChange.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {' '}
+                  ({isPositive ? '+' : ''}{displayPercent.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)
                 </Box>
               </Box>
             </Box>
@@ -966,11 +968,11 @@ export default function StockDetailView() {
           <Box sx={{ bgcolor: 'rgba(255,255,255,0.05)', p: 2, borderRadius: 2, width: '100%', mb: 2 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
               <Typography variant="body2" sx={{ color: '#a0a0a0' }}>Satılacak Adet:</Typography>
-              <Typography variant="body2" fontWeight="bold" sx={{ color: 'white' }}>{shareErrorData.required.toFixed(4)}</Typography>
+              <Typography variant="body2" fontWeight="bold" sx={{ color: 'white' }}>{shareErrorData.required.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</Typography>
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
               <Typography variant="body2" sx={{ color: '#a0a0a0' }}>Mevcut Adet:</Typography>
-              <Typography variant="body2" fontWeight="bold" sx={{ color: '#ff5252' }}>{shareErrorData.owned.toFixed(4)}</Typography>
+              <Typography variant="body2" fontWeight="bold" sx={{ color: '#ff5252' }}>{shareErrorData.owned.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</Typography>
             </Box>
           </Box>
 

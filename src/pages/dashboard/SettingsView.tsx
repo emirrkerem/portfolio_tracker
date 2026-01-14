@@ -21,6 +21,10 @@ export default function SettingsView() {
     try {
       const res = await fetch('http://localhost:5000/api/reset', { method: 'POST' });
       if (res.ok) {
+        // Tarayici onbellegini de temizle
+        localStorage.removeItem('portfolio_view_cache');
+        localStorage.removeItem('target_view_cache');
+        
         setSuccessMsg('Veriler başarıyla silindi. Sayfa yenileniyor...');
         setOpenReset(false);
         // Sayfayı yenilemek iyi olabilir verilerin temizlendiğini görmek için
