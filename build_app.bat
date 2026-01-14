@@ -53,3 +53,5 @@ echo ISLEM TAMAMLANDI! BorsaApp.exe ana klasore tasindi.
 cd /d "%PROJECT_ROOT%"
 start "" "."
 pause
+
+:: Run this script
