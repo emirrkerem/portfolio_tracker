@@ -669,7 +669,7 @@ def update_transaction():
         return jsonify({'error': str(e)}), 500
 
 # Cüzdan Yönetimi (Nakit Giriş/Çıkış)
-@app.route('/api/wallet', methods=['GET', 'POST', 'DELETE'])
+@app.route('/api/wallet', methods=['GET', 'POST', 'DELETE', 'PUT'])
 def handle_wallet():
     # GET: Bakiyeyi Hesapla
     if request.method == 'GET':
@@ -740,6 +740,30 @@ def handle_wallet():
             df.to_csv(WALLET_FILE, mode='a', header=header, index=False)
             clear_user_cache() # Veri değişti
             return jsonify({"status": "success", "data": new_tx})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    # PUT: İşlem Güncelle
+    if request.method == 'PUT':
+        try:
+            data = request.json
+            tx_id = int(data.get('id'))
+            if os.path.exists(WALLET_FILE):
+                df = pd.read_csv(WALLET_FILE)
+                # Header check
+                if 'amount' not in df.columns:
+                    df = pd.read_csv(WALLET_FILE, header=None, names=['date', 'type', 'amount'])
+                
+                if tx_id in df.index:
+                    df.at[tx_id, 'amount'] = float(data.get('amount', df.at[tx_id, 'amount']))
+                    df.at[tx_id, 'type'] = data.get('type', df.at[tx_id, 'type'])
+                    df.at[tx_id, 'date'] = data.get('date', df.at[tx_id, 'date'])
+                    
+                    df.to_csv(WALLET_FILE, index=False)
+                    clear_user_cache()
+                    return jsonify({"status": "success"})
+                else:
+                    return jsonify({"error": "Transaction not found"}), 404
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 

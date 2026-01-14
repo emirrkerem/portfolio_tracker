@@ -31,6 +31,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import SellIcon from '@mui/icons-material/Sell';
@@ -47,6 +48,8 @@ export default function WalletManager() {
   const [itemToDelete, setItemToDelete] = useState<number | null>(null);
   const [balance, setBalance] = useState(0);
   const [balanceErrorOpen, setBalanceErrorOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   
   // Calendar State
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
@@ -76,6 +79,23 @@ export default function WalletManager() {
     window.addEventListener('portfolio-updated', fetchWalletData);
     return () => window.removeEventListener('portfolio-updated', fetchWalletData);
   }, []);
+
+  const handleEditClick = (tx: any) => {
+    setEditMode(true);
+    setEditingId(tx.id);
+    setType(tx.type);
+    setAmount(tx.amount.toString());
+    setDate(tx.date);
+    setOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpen(false);
+    setEditMode(false);
+    setEditingId(null);
+    setAmount('');
+    setDate(new Date().toISOString().slice(0, 16));
+  };
 
   const handleDeleteClick = (id: number) => {
     setItemToDelete(id);
@@ -201,17 +221,29 @@ export default function WalletManager() {
     }
 
     try {
-      await fetch('http://localhost:5000/api/wallet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type,
-          amount: Number(amount),
-          date
-        })
-      });
-      setOpen(false);
-      setAmount('');
+      if (editMode && editingId !== null) {
+        await fetch('http://localhost:5000/api/wallet', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editingId,
+            type,
+            amount: Number(amount),
+            date
+          })
+        });
+      } else {
+        await fetch('http://localhost:5000/api/wallet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type,
+            amount: Number(amount),
+            date
+          })
+        });
+      }
+      handleCloseDialog();
       setPage(1); // Yeni işlem eklenince ilk sayfaya dön
       window.dispatchEvent(new Event('portfolio-updated'));
     } catch (err) {
@@ -247,7 +279,7 @@ export default function WalletManager() {
         variant="contained" 
         fullWidth 
         startIcon={<AccountBalanceWalletIcon />}
-        onClick={() => setOpen(true)}
+        onClick={() => { setEditMode(false); setOpen(true); }}
         sx={{ 
           bgcolor: 'rgba(255,255,255,0.05)', 
           color: 'white',
@@ -295,6 +327,16 @@ export default function WalletManager() {
                     <Typography variant="body2" fontWeight="bold" sx={{ color: isPositive(tx.type) ? '#69f0ae' : '#ff8a80' }}>
                       {isPositive(tx.type) ? '+' : '-'}${parseFloat(tx.amount).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </Typography>
+                    {/* Sadece manuel işlemler (DEPOSIT/WITHDRAW) düzenlenebilir */}
+                    {['DEPOSIT', 'WITHDRAW'].includes(tx.type) && (
+                      <IconButton 
+                        size="small" 
+                        onClick={() => handleEditClick(tx)}
+                        sx={{ color: 'rgba(255,255,255,0.3)', '&:hover': { color: '#2979ff', bgcolor: 'rgba(41, 121, 255, 0.1)' } }}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    )}
                     <IconButton 
                       size="small" 
                       onClick={() => handleDeleteClick(tx.id)}
@@ -326,7 +368,7 @@ export default function WalletManager() {
 
       <Dialog 
         open={open} 
-        onClose={() => setOpen(false)}
+        onClose={handleCloseDialog}
         TransitionProps={{ timeout: 400 }}
         PaperProps={{
           sx: {
@@ -354,10 +396,10 @@ export default function WalletManager() {
               {type === 'DEPOSIT' ? <TrendingUpIcon /> : <TrendingDownIcon />}
             </Avatar>
             <Typography variant="h5" fontWeight="bold">
-              {type === 'DEPOSIT' ? 'Para Yatır' : 'Para Çek'}
+              {editMode ? 'İşlemi Düzenle' : (type === 'DEPOSIT' ? 'Para Yatır' : 'Para Çek')}
             </Typography>
           </Box>
-          <IconButton onClick={() => setOpen(false)} sx={{ color: '#a0a0a0', '&:hover': { color: 'white' } }}>
+          <IconButton onClick={handleCloseDialog} sx={{ color: '#a0a0a0', '&:hover': { color: 'white' } }}>
             <CloseIcon />
           </IconButton>
         </Box>
@@ -521,7 +563,7 @@ export default function WalletManager() {
                   }
                 }}
               >
-                ONAYLA
+                {editMode ? 'GÜNCELLE' : 'ONAYLA'}
               </Button>
             </Paper>
         </DialogContent>
