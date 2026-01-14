@@ -539,7 +539,7 @@ export default function StockChart({ symbol, height = '320px', onPriceUpdate }: 
                         color: item.isFuture ? '#444' : (item.isSelected ? 'white' : (item.isToday ? '#2979ff' : 'white')), 
                         fontWeight: item.isSelected || item.isToday ? 'bold' : 'normal', 
                         border: item.isToday && !item.isSelected ? '1px solid #2979ff' : 'none', 
-                        '&:hover': { bgcolor: !item.isFuture && (item.isSelected ? '#2979ff' : 'rgba(255,255,255,0.1)') } 
+                        '&:hover': { bgcolor: item.isFuture ? 'transparent' : (item.isSelected ? '#2979ff' : 'rgba(255,255,255,0.1)') } 
                       }}
                     >
                       {item.d}
