@@ -41,12 +41,25 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'
 
 export default function PortfolioView() {
   const navigate = useNavigate();
-  const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
-  const [walletBalance, setWalletBalance] = useState(0);
-  const [totalEquity, setTotalEquity] = useState(0);
-  const [totalProfit, setTotalProfit] = useState(0);
-  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
-  const [allTransactions, setAllTransactions] = useState<any[]>([]);
+
+  // Cache Helper
+  const getCachedData = (key: string, defaultVal: any) => {
+    try {
+      const cached = localStorage.getItem('portfolio_view_cache');
+      if (cached) {
+        const data = JSON.parse(cached);
+        return data[key] !== undefined ? data[key] : defaultVal;
+      }
+    } catch (e) { console.error("Cache parse error", e); }
+    return defaultVal;
+  };
+
+  const [portfolio, setPortfolio] = useState<PortfolioItem[]>(() => getCachedData('portfolio', []));
+  const [walletBalance, setWalletBalance] = useState(() => getCachedData('walletBalance', 0));
+  const [totalEquity, setTotalEquity] = useState(() => getCachedData('totalEquity', 0));
+  const [totalProfit, setTotalProfit] = useState(() => getCachedData('totalProfit', 0));
+  const [recentTransactions, setRecentTransactions] = useState<any[]>(() => getCachedData('recentTransactions', []));
+  const [allTransactions, setAllTransactions] = useState<any[]>(() => getCachedData('allTransactions', []));
 
   const fetchData = async () => {
     try {
@@ -98,6 +111,17 @@ export default function PortfolioView() {
         setPortfolio(updatedPortfolio);
         setTotalEquity(equity);
         setTotalProfit(profit);
+
+        // Cache'i Güncelle
+        const cacheData = {
+          portfolio: updatedPortfolio,
+          walletBalance: walletData.balance || 0,
+          totalEquity: equity,
+          totalProfit: profit,
+          recentTransactions: Array.isArray(txData) ? txData.slice(0, 5) : [],
+          allTransactions: Array.isArray(txData) ? txData : []
+        };
+        localStorage.setItem('portfolio_view_cache', JSON.stringify(cacheData));
       } else {
         setPortfolio([]);
         setTotalEquity(0);

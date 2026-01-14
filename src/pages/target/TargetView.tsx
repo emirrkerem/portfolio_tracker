@@ -39,18 +39,32 @@ import DonutLargeIcon from '@mui/icons-material/DonutLarge';
 import Pagination from '@mui/material/Pagination';
 
 export default function TargetView() {
-  const [startingAmount, setStartingAmount] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [years, setYears] = useState('10');
-  const [returnRate, setReturnRate] = useState('8'); // Varsayılan %8
-  const [monthlyContribution, setMonthlyContribution] = useState('');
-  const [loading, setLoading] = useState(true);
+  // Cache Helper
+  const getCachedData = (key: string, defaultVal: any) => {
+    try {
+      const cached = localStorage.getItem('target_view_cache');
+      if (cached) {
+        const data = JSON.parse(cached);
+        return data[key] !== undefined ? data[key] : defaultVal;
+      }
+    } catch (e) { console.error("Cache parse error", e); }
+    return defaultVal;
+  };
+
+  const [startingAmount, setStartingAmount] = useState(() => getCachedData('startingAmount', ''));
+  const [startDate, setStartDate] = useState(() => getCachedData('startDate', ''));
+  const [years, setYears] = useState(() => getCachedData('years', '10'));
+  const [returnRate, setReturnRate] = useState(() => getCachedData('returnRate', '8')); // Varsayılan %8
+  const [monthlyContribution, setMonthlyContribution] = useState(() => getCachedData('monthlyContribution', ''));
+  
+  const hasCache = !!localStorage.getItem('target_view_cache');
+  const [loading, setLoading] = useState(!hasCache); // Cache varsa loading gösterme
   const [saving, setSaving] = useState(false);
   const [tabValue, setTabValue] = useState(0);
-  const [walletTransactions, setWalletTransactions] = useState<any[]>([]);
+  const [walletTransactions, setWalletTransactions] = useState<any[]>(() => getCachedData('walletTransactions', []));
   const [selectedYear, setSelectedYear] = useState<string>('');
   const [selectedRange, setSelectedRange] = useState('ALL');
-  const [portfolioHistory, setPortfolioHistory] = useState<any[]>([]);
+  const [portfolioHistory, setPortfolioHistory] = useState<any[]>(() => getCachedData('portfolioHistory', []));
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [calendarViewDate, setCalendarViewDate] = useState(new Date());
   const [calendarViewMode, setCalendarViewMode] = useState<'day' | 'year'>('day');
@@ -89,6 +103,18 @@ export default function TargetView() {
         if (walletData.transactions) {
             setWalletTransactions(walletData.transactions);
         }
+
+        // Cache'i Güncelle
+        const cacheData = {
+            startingAmount: targetData.startingAmount !== undefined ? String(targetData.startingAmount) : '0',
+            startDate: targetData.startDate || new Date().toISOString().split('T')[0],
+            years: targetData.years !== undefined ? String(targetData.years) : '10',
+            returnRate: targetData.returnRate !== undefined ? String(targetData.returnRate) : '8',
+            monthlyContribution: targetData.monthlyContribution !== undefined ? String(targetData.monthlyContribution) : '',
+            walletTransactions: walletData.transactions || [],
+            portfolioHistory: Array.isArray(portData) ? portData : []
+        };
+        localStorage.setItem('target_view_cache', JSON.stringify(cacheData));
 
       } catch (err) {
         console.error(err);
