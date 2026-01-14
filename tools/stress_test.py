@@ -18,6 +18,14 @@ ENDPOINTS = [
     "/api/targets"
 ]
 
+# Log dosyasi
+LOG_FILE = "stress_test_sonuc.txt"
+
+def log_message(msg):
+    print(msg)
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(msg + "\n")
+
 def send_request(i):
     """Tek bir istek gönderir ve süresini ölçer."""
     endpoint = random.choice(ENDPOINTS)
@@ -29,22 +37,22 @@ def send_request(i):
         duration = time.time() - start
         
         status_icon = "✅" if res.status_code == 200 else "❌"
-        print(f"[{i}] {status_icon} Status: {res.status_code} | Süre: {duration:.2f}s | {endpoint}")
+        log_message(f"[{i}] {status_icon} Status: {res.status_code} | Süre: {duration:.2f}s | {endpoint}")
     except Exception as e:
-        print(f"[{i}] ⚠️ HATA: {e}")
+        log_message(f"[{i}] ⚠️ HATA: {e}")
 
 def run_stress_test(request_count=50, concurrency=5):
     """
     request_count: Toplam gönderilecek istek sayısı
     concurrency: Aynı anda kaç istek gönderileceği (Eşzamanlılık)
     """
-    print(f"\n==========================================")
-    print(f"🚀 STRES TESTİ BAŞLIYOR")
-    print(f"==========================================")
-    print(f"Hedef Adres   : {BASE_URL}")
-    print(f"Toplam İstek  : {request_count}")
-    print(f"Eşzamanlılık  : {concurrency}")
-    print(f"------------------------------------------")
+    log_message(f"\n==========================================")
+    log_message(f"🚀 STRES TESTİ BAŞLIYOR")
+    log_message(f"==========================================")
+    log_message(f"Hedef Adres   : {BASE_URL}")
+    log_message(f"Toplam İstek  : {request_count}")
+    log_message(f"Eşzamanlılık  : {concurrency}")
+    log_message(f"------------------------------------------")
 
     threads = []
     for i in range(request_count):
@@ -61,26 +69,28 @@ def run_stress_test(request_count=50, concurrency=5):
     for t in threads:
         t.join()
     
-    print(f"------------------------------------------")
-    print(f"🏁 Test Tamamlandı.")
-    print(f"==========================================\n")
+    log_message(f"------------------------------------------")
+    log_message(f"🏁 Test Tamamlandı.")
+    log_message(f"==========================================\n")
 
 if __name__ == "__main__":
+    # Log dosyasini temizle
+    open(LOG_FILE, "w").close()
+    
     # Önce uygulamanın açık olup olmadığını kontrol et
     try:
-        print("Uygulama kontrol ediliyor...")
+        log_message("Uygulama kontrol ediliyor...")
         requests.post(f"{BASE_URL}/api/heartbeat", timeout=2)
-        print("Uygulama çalışıyor. Test başlıyor...")
+        log_message("Uygulama çalışıyor. Test başlıyor...")
         
         # Testi Başlat (50 istek gönder, aynı anda 5'erli gruplar halinde)
         run_stress_test(request_count=50, concurrency=5)
         
     except requests.exceptions.ConnectionError:
-        print("\n[HATA] Uygulama çalışmıyor!")
-        print("Lütfen önce BorsaApp uygulamasını çalıştırın, sonra bu testi başlatın.")
-        print("İpucu: 'BorsaApp.exe'yi açın ve giriş ekranının gelmesini bekleyin.")
+        log_message("\n[HATA] Uygulama çalışmıyor!")
+        log_message("Lütfen önce BorsaApp uygulamasını çalıştırın, sonra bu testi başlatın.")
+        log_message("İpucu: 'BorsaApp.exe'yi açın ve giriş ekranının gelmesini bekleyin.")
     except Exception as e:
-        print(f"\n[HATA] Beklenmedik bir sorun oluştu: {e}")
+        log_message(f"\n[HATA] Beklenmedik bir sorun oluştu: {e}")
     
     input("Çıkmak için Enter'a basın...")
-

@@ -46,10 +46,10 @@ cd chart_server
 
 if exist "%ICON_PATH%" (
     echo Ozel ikon bulundu: %ICON_PATH%
-    call pyinstaller --noconfirm --onefile --windowed --name "BorsaApp" --add-data "../dist;dist" --icon="%ICON_PATH%" app.py
+    call pyinstaller --noconfirm --onefile --windowed --name "BorsaApp" --hidden-import=yfinance --hidden-import=pandas --add-data "../dist;dist" --icon="%ICON_PATH%" app.py
 ) else (
     echo Ozel ikon bulunamadi, varsayilan ikon kullaniliyor...
-    call pyinstaller --noconfirm --onefile --windowed --name "BorsaApp" --add-data "../dist;dist" --icon=NONE app.py
+    call pyinstaller --noconfirm --onefile --windowed --name "BorsaApp" --hidden-import=yfinance --hidden-import=pandas --add-data "../dist;dist" --icon=NONE app.py
 )
 
 echo.

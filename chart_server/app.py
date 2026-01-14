@@ -11,6 +11,9 @@ import webbrowser
 import threading
 import time
 from threading import Timer
+import logging
+from logging.handlers import RotatingFileHandler
+import traceback
 
 # --- AYARLAR VE YOL TANIMLAMALARI ---
 if getattr(sys, 'frozen', False):
@@ -34,6 +37,27 @@ else:
 # Flask Uygulaması
 app = Flask(__name__, static_folder=static_folder, static_url_path='')
 CORS(app)
+
+# --- LOGLAMA (HATA KAYIT) AYARLARI ---
+# Storage klasörünün varlığından emin ol
+os.makedirs(STORAGE_DIR, exist_ok=True)
+
+# Log dosyası yolu: storage/app_errors.log
+log_file_path = os.path.join(STORAGE_DIR, 'app_errors.log')
+
+# Logger yapılandırması: Hem dosyaya hem konsola yazar. Dosya 1MB olunca yedekler.
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+    handlers=[
+        RotatingFileHandler(log_file_path, maxBytes=1_000_000, backupCount=5, encoding='utf-8'),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+
+# Flask ve Werkzeug loglarını da yakala
+logging.getLogger('werkzeug').setLevel(logging.INFO)
+app.logger.setLevel(logging.INFO)
 
 # --- ÖNBELLEKLEME (CACHING) ---
 # API yanıtlarını hafızada tutarak tekrar tekrar indirmeyi önler.
@@ -62,7 +86,7 @@ def clear_user_cache():
 
 # --- HEARTBEAT (OTOMATIK KAPATMA) ---
 # Frontend kapandiginda backend'in de kapanmasi icin
-last_heartbeat = time.time() + 15  # Baslangicta 15 saniye mühlet
+last_heartbeat = time.time() + 30  # Baslangicta 30 saniye mühlet (Yavas PC'ler icin artirildi)
 
 @app.route('/api/heartbeat', methods=['POST'])
 def heartbeat():
@@ -470,9 +494,6 @@ TRANSACTIONS_FILE = os.path.join(STORAGE_DIR, 'transactions.csv')
 WALLET_FILE = os.path.join(STORAGE_DIR, 'wallet.csv')
 TARGETS_FILE = os.path.join(STORAGE_DIR, 'targets.json')
 
-# Storage klasörünün varlığından emin ol (Yoksa oluşturur)
-os.makedirs(STORAGE_DIR, exist_ok=True)
-
 @app.route('/api/portfolio', methods=['GET', 'POST'])
 def handle_portfolio():
     # GET: İşlemleri oku ve portföy özetini hesapla
@@ -555,7 +576,7 @@ def handle_portfolio():
             clear_user_cache() # Veri değişti, cache'i temizle
             return jsonify({"status": "success", "data": data})
         except Exception as e:
-            print(f"CSV Kayıt Hatası: {e}")
+            app.logger.error(f"CSV Kayıt Hatası: {e}", exc_info=True)
             return jsonify({'error': str(e)}), 500
 
 # İşlem Geçmişi (Ham Veri)
@@ -662,6 +683,7 @@ def delete_transaction():
             else:
                 return jsonify({"error": "Transaction not found"}), 404
     except Exception as e:
+        app.logger.error(f"Transaction Delete Error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 # İşlem Güncelleme
@@ -695,6 +717,7 @@ def update_transaction():
             else:
                 return jsonify({"error": "Transaction not found"}), 404
     except Exception as e:
+        app.logger.error(f"Transaction Update Error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 # Cüzdan Yönetimi (Nakit Giriş/Çıkış)
@@ -770,6 +793,7 @@ def handle_wallet():
             clear_user_cache() # Veri değişti
             return jsonify({"status": "success", "data": new_tx})
         except Exception as e:
+            app.logger.error(f"Wallet Post Error: {e}", exc_info=True)
             return jsonify({'error': str(e)}), 500
 
     # PUT: İşlem Güncelle
@@ -794,6 +818,7 @@ def handle_wallet():
                 else:
                     return jsonify({"error": "Transaction not found"}), 404
         except Exception as e:
+            app.logger.error(f"Wallet Put Error: {e}", exc_info=True)
             return jsonify({'error': str(e)}), 500
 
     # DELETE: İşlem Sil
@@ -861,6 +886,7 @@ def handle_wallet():
                 else:
                     return jsonify({"error": "Transaction not found"}), 404
         except Exception as e:
+            app.logger.error(f"Wallet Delete Error: {e}", exc_info=True)
             return jsonify({'error': str(e)}), 500
 
 # Hedef Yönetimi (Target)
@@ -889,6 +915,7 @@ def handle_targets():
             clear_user_cache() # Veri değişti
             return jsonify({"status": "success"})
         except Exception as e:
+            app.logger.error(f"Targets Post Error: {e}", exc_info=True)
             return jsonify({'error': str(e)}), 500
             
     if request.method == 'DELETE':
@@ -898,6 +925,7 @@ def handle_targets():
             clear_user_cache() # Veri değişti
             return jsonify({"status": "success"})
         except Exception as e:
+            app.logger.error(f"Targets Delete Error: {e}", exc_info=True)
             return jsonify({'error': str(e)}), 500
 
 # Verileri Sıfırla (Tüm verileri sil)
@@ -916,6 +944,7 @@ def reset_all_data():
         clear_user_cache()
         return jsonify({"status": "success"})
     except Exception as e:
+        app.logger.error(f"Reset Error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 # Portföy Tarihçesi (Grafik İçin)
@@ -1098,7 +1127,7 @@ def get_portfolio_history():
         return jsonify(result)
 
     except Exception as e:
-        print(f"Portfolio History Error: {e}")
+        app.logger.error(f"Portfolio History Error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 # Akıllı Arama (Şirket İsminden Sembol Bulma)
@@ -1144,12 +1173,23 @@ def serve():
 
 if __name__ == '__main__':
     # Eğer .exe ise tarayıcıyı otomatik aç
-    if getattr(sys, 'frozen', False):
-        # Monitor thread'i baslat (Arka planda calisip kapanmayi kontrol eder)
-        t = threading.Thread(target=monitor_heartbeat, daemon=True)
-        t.start()
+    try:
+        if getattr(sys, 'frozen', False):
+            # Monitor thread'i baslat (Arka planda calisip kapanmayi kontrol eder)
+            t = threading.Thread(target=monitor_heartbeat, daemon=True)
+            t.start()
 
-        Timer(1.5, lambda: webbrowser.open("http://localhost:5000")).start()
-        app.run(port=5000, debug=False)
-    else:
-        app.run(port=5000, debug=True)
+            Timer(2.0, lambda: webbrowser.open("http://localhost:5000")).start()
+            app.run(port=5000, debug=False)
+        else:
+            app.run(port=5000, debug=True)
+    except Exception as e:
+        # Kritik hata durumunda Masaustune rapor yaz
+        try:
+            desktop = os.path.join(os.environ['USERPROFILE'], 'Desktop')
+            error_path = os.path.join(desktop, 'BORSA_HATA_RAPORU.txt')
+            with open(error_path, 'w', encoding='utf-8') as f:
+                f.write(f"HATA ZAMANI: {datetime.datetime.now()}\n\n")
+                f.write(traceback.format_exc())
+        except:
+            pass # Rapor yazarken de hata olursa yapacak bir sey yok
