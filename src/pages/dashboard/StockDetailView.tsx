@@ -50,6 +50,16 @@ interface StockData {
   pctChange: number;
 }
 
+const MARKET_OVERVIEW = [
+  { symbol: 'QQQ', name: 'Invesco QQQ' },
+  { symbol: 'SPY', name: 'SPDR S&P 500' },
+  { symbol: 'BTC-USD', name: 'Bitcoin', displaySymbol: 'BTC' },
+  { symbol: 'GC=F', name: 'Gold', displaySymbol: 'GOLD' },
+  { symbol: 'SI=F', name: 'Silver', displaySymbol: 'SILVER' },
+  { symbol: 'TRY=X', name: 'USD/TRY', displaySymbol: 'USDTRY' },
+  { symbol: '^VIX', name: 'Volatility Index', displaySymbol: 'VIX' },
+];
+
 export default function StockDetailView() {
   const { symbol } = useParams();
   const navigate = useNavigate();
@@ -240,6 +250,11 @@ export default function StockDetailView() {
   const displayPercent = chartDisplayData?.percent ?? stockDetails?.pctChange ?? 0;
   const isPositive = displayChange >= 0;
 
+  // Özel isim kontrolü (Overview listesindeki isimleri kullan)
+  const overviewItem = MARKET_OVERVIEW.find(item => item.symbol === symbol);
+  const displayName = overviewItem ? overviewItem.name : (stockDetails?.name || symbol);
+  const displaySymbol = overviewItem?.displaySymbol || symbol;
+
   // Takvim Yardımcı Fonksiyonları
   const months = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
   const daysShort = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
@@ -398,7 +413,7 @@ export default function StockDetailView() {
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 2, flexWrap: 'wrap' }}>
               <Typography variant="h3" fontWeight="800" sx={{ letterSpacing: '-1px', background: 'linear-gradient(90deg, #fff, #ccc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                {symbol}
+                {displaySymbol}
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, ml: 1 }}>
                 <PriceTicker price={displayPrice} />
@@ -415,7 +430,7 @@ export default function StockDetailView() {
                 </Box>
               </Box>
             </Box>
-            <Typography variant="subtitle1" sx={{ color: '#a0a0a0', fontWeight: 500 }}>{stockDetails?.name || 'Stock Detail View'}</Typography>
+            <Typography variant="subtitle1" sx={{ color: '#a0a0a0', fontWeight: 500 }}>{displayName}</Typography>
           </Box>
         </Box>
 
