@@ -526,7 +526,7 @@ export default function TargetView() {
                   <InputAdornment position="start">
                     <IconButton 
                       size="small"
-                      onClick={() => setStartingAmount(prev => Math.max(0, (parseFloat(prev) || 0) - 1000).toString())}
+                      onClick={() => setStartingAmount((prev: string) => Math.max(0, (parseFloat(prev) || 0) - 1000).toString())}
                       sx={{ color: '#a0a0a0', bgcolor: 'rgba(255,255,255,0.05)', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)', color: 'white' } }}
                     >
                       <RemoveIcon fontSize="small" />
@@ -537,7 +537,7 @@ export default function TargetView() {
                   <InputAdornment position="end">
                     <IconButton 
                       size="small"
-                      onClick={() => setStartingAmount(prev => ((parseFloat(prev) || 0) + 1000).toString())}
+                      onClick={() => setStartingAmount((prev: string) => ((parseFloat(prev) || 0) + 1000).toString())}
                       sx={{ color: '#a0a0a0', bgcolor: 'rgba(255,255,255,0.05)', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)', color: 'white' } }}
                     >
                       <AddIcon fontSize="small" />
@@ -612,7 +612,7 @@ export default function TargetView() {
                   <InputAdornment position="start">
                     <IconButton 
                       size="small"
-                      onClick={() => setYears(prev => Math.max(1, (parseFloat(prev) || 0) - 1).toString())}
+                      onClick={() => setYears((prev: string) => Math.max(1, (parseFloat(prev) || 0) - 1).toString())}
                       sx={{ color: '#a0a0a0', bgcolor: 'rgba(255,255,255,0.05)', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)', color: 'white' } }}
                     >
                       <RemoveIcon fontSize="small" />
@@ -623,7 +623,7 @@ export default function TargetView() {
                   <InputAdornment position="end">
                     <IconButton 
                       size="small"
-                      onClick={() => setYears(prev => Math.min(70, (parseFloat(prev) || 0) + 1).toString())}
+                      onClick={() => setYears((prev: string) => Math.min(70, (parseFloat(prev) || 0) + 1).toString())}
                       sx={{ color: '#a0a0a0', bgcolor: 'rgba(255,255,255,0.05)', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)', color: 'white' } }}
                     >
                       <AddIcon fontSize="small" />
@@ -655,7 +655,7 @@ export default function TargetView() {
                   <InputAdornment position="start">
                     <IconButton 
                       size="small"
-                      onClick={() => setReturnRate(prev => Math.max(0, (parseFloat(prev) || 0) - 0.5).toString())}
+                      onClick={() => setReturnRate((prev: string) => Math.max(0, (parseFloat(prev) || 0) - 0.5).toString())}
                       sx={{ color: '#a0a0a0', bgcolor: 'rgba(255,255,255,0.05)', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)', color: 'white' } }}
                     >
                       <RemoveIcon fontSize="small" />
@@ -666,7 +666,7 @@ export default function TargetView() {
                   <InputAdornment position="end">
                     <IconButton 
                       size="small"
-                      onClick={() => setReturnRate(prev => ((parseFloat(prev) || 0) + 0.5).toString())}
+                      onClick={() => setReturnRate((prev: string) => ((parseFloat(prev) || 0) + 0.5).toString())}
                       sx={{ color: '#a0a0a0', bgcolor: 'rgba(255,255,255,0.05)', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)', color: 'white' } }}
                     >
                       <AddIcon fontSize="small" />
@@ -698,7 +698,7 @@ export default function TargetView() {
                   <InputAdornment position="start">
                     <IconButton 
                       size="small"
-                      onClick={() => setMonthlyContribution(prev => Math.max(0, (parseFloat(prev) || 0) - 100).toString())}
+                      onClick={() => setMonthlyContribution((prev: string) => Math.max(0, (parseFloat(prev) || 0) - 100).toString())}
                       sx={{ color: '#a0a0a0', bgcolor: 'rgba(255,255,255,0.05)', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)', color: 'white' } }}
                     >
                       <RemoveIcon fontSize="small" />
@@ -709,7 +709,7 @@ export default function TargetView() {
                   <InputAdornment position="end">
                     <IconButton 
                       size="small"
-                      onClick={() => setMonthlyContribution(prev => ((parseFloat(prev) || 0) + 100).toString())}
+                      onClick={() => setMonthlyContribution((prev: string) => ((parseFloat(prev) || 0) + 100).toString())}
                       sx={{ color: '#a0a0a0', bgcolor: 'rgba(255,255,255,0.05)', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)', color: 'white' } }}
                     >
                       <AddIcon fontSize="small" />
@@ -1139,7 +1139,6 @@ export default function TargetView() {
                         width: 36, height: 36, 
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         borderRadius: '50%', cursor: 'pointer', mx: 'auto',
-                        cursor: 'pointer',
                         bgcolor: item.isSelected ? '#2979ff' : 'transparent',
                         color: item.isSelected ? 'white' : (item.isToday ? '#2979ff' : 'white'),
                         fontWeight: item.isSelected || item.isToday ? 'bold' : 'normal',

@@ -31,3 +31,6 @@ yarn-debug.log*
 # IDE Settings
 .vscode/
 .idea/
+
+# Local Scripts
+git_guncelle.bat
