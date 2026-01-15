@@ -265,9 +265,8 @@ export default function WalletManager() {
       }
 
       if (res.ok) {
-        handleCloseDialog();
-        setPage(1); // Yeni işlem eklenince ilk sayfaya dön
-        window.dispatchEvent(new Event('portfolio-updated'));
+        alert('İşlem Başarıyla Kaydedildi! Sayfa güncelleniyor...');
+        window.location.reload(); // Kesin çözüm: Sayfayı yenile
       } else {
         let errData;
         try {

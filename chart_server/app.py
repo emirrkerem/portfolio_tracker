@@ -293,6 +293,7 @@ def login():
 # --- KULLANICI YARDIMCISI ---
 def get_current_user_id():
     user_id = request.headers.get('X-User-ID')
+    print(f"[AUTH] Request Header X-User-ID: {user_id}") # DEBUG LOG
     if user_id:
         return int(user_id)
     return 1
@@ -990,15 +991,20 @@ def handle_wallet():
     if request.method == 'POST':
         try:
             data = request.json
+            print(f"[WALLET DEBUG] Gelen Veri: {data}") # DEBUG LOG
+            
             date_val = data.get('date', datetime.datetime.now().isoformat())
             tx_type = data.get('type', 'DEPOSIT')
             
             raw_amount = data.get('amount')
             amount = float(raw_amount) if raw_amount is not None else 0.0
             
+            print(f"[WALLET DEBUG] Eklenecek: User={user_id}, Type={tx_type}, Amount={amount}") # DEBUG LOG
+            
             db.execute('INSERT INTO wallet (user_id, type, amount, date) VALUES (?, ?, ?, ?)', 
                        (user_id, tx_type, amount, date_val))
             db.commit()
+            print("[WALLET DEBUG] Kayıt Başarılı!") # DEBUG LOG
             
             clear_user_cache() # Veri değişti
             return jsonify({"status": "success"})
