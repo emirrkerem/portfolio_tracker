@@ -230,8 +230,9 @@ export default function WalletManager() {
       const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
       const headers = { 'Content-Type': 'application/json', 'X-User-ID': String(user.id || '1') };
 
+      let res;
       if (editMode && editingId !== null) {
-        await fetch(`${API_URL}/api/wallet`, {
+        res = await fetch(`${API_URL}/api/wallet`, {
           method: 'PUT',
           headers: headers,
           body: JSON.stringify({
@@ -242,7 +243,7 @@ export default function WalletManager() {
           })
         });
       } else {
-        await fetch(`${API_URL}/api/wallet`, {
+        res = await fetch(`${API_URL}/api/wallet`, {
           method: 'POST',
           headers: headers,
           body: JSON.stringify({
@@ -252,11 +253,18 @@ export default function WalletManager() {
           })
         });
       }
-      handleCloseDialog();
-      setPage(1); // Yeni işlem eklenince ilk sayfaya dön
-      window.dispatchEvent(new Event('portfolio-updated'));
+
+      if (res.ok) {
+        handleCloseDialog();
+        setPage(1); // Yeni işlem eklenince ilk sayfaya dön
+        window.dispatchEvent(new Event('portfolio-updated'));
+      } else {
+        const errData = await res.json();
+        alert(`İşlem başarısız: ${errData.error || 'Bilinmeyen hata'}`);
+      }
     } catch (err) {
       console.error(err);
+      alert('Sunucu hatası. Backend çalışıyor mu veya internet bağlantınız var mı?');
     }
   };
 
