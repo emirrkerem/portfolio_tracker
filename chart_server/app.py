@@ -992,7 +992,9 @@ def handle_wallet():
             data = request.json
             date_val = data.get('date', datetime.datetime.now().isoformat())
             tx_type = data.get('type', 'DEPOSIT')
-            amount = float(data.get('amount', 0))
+            
+            raw_amount = data.get('amount')
+            amount = float(raw_amount) if raw_amount is not None else 0.0
             
             db.execute('INSERT INTO wallet (user_id, type, amount, date) VALUES (?, ?, ?, ?)', 
                        (user_id, tx_type, amount, date_val))
@@ -1013,7 +1015,9 @@ def handle_wallet():
             # Mevcut veriyi kontrol et
             cur = db.execute("SELECT * FROM wallet WHERE id = ? AND user_id = ?", (tx_id, user_id))
             if cur.fetchone():
-                amount = float(data.get('amount'))
+                raw_amount = data.get('amount')
+                amount = float(raw_amount) if raw_amount is not None else 0.0
+                
                 tx_type = data.get('type')
                 date_val = data.get('date')
                 

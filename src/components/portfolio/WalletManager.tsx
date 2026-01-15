@@ -51,6 +51,7 @@ export default function WalletManager() {
   const [balanceErrorOpen, setBalanceErrorOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   
   // Calendar State
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
@@ -220,12 +221,21 @@ export default function WalletManager() {
   };
 
   const handleSubmit = async () => {
-    const val = Number(amount);
+    // Virgül/Nokta düzeltmesi ve Sayı kontrolü
+    const normalizedAmount = amount.replace(',', '.');
+    const val = Number(normalizedAmount);
+
+    if (isNaN(val) || val <= 0) {
+      alert('Lütfen geçerli bir tutar giriniz (Örn: 100 veya 10.5)');
+      return;
+    }
+
     if (type === 'WITHDRAW' && val > balance) {
       setBalanceErrorOpen(true);
       return;
     }
 
+    setSubmitting(true);
     try {
       const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
       const headers = { 'Content-Type': 'application/json', 'X-User-ID': String(user.id || '1') };
@@ -238,7 +248,7 @@ export default function WalletManager() {
           body: JSON.stringify({
             id: editingId,
             type,
-            amount: Number(amount),
+            amount: val,
             date
           })
         });
@@ -248,7 +258,7 @@ export default function WalletManager() {
           headers: headers,
           body: JSON.stringify({
             type,
-            amount: Number(amount),
+            amount: val,
             date
           })
         });
@@ -259,12 +269,19 @@ export default function WalletManager() {
         setPage(1); // Yeni işlem eklenince ilk sayfaya dön
         window.dispatchEvent(new Event('portfolio-updated'));
       } else {
-        const errData = await res.json();
+        let errData;
+        try {
+            errData = await res.json();
+        } catch {
+            errData = { error: `Sunucu Hatası: ${res.status}` };
+        }
         alert(`İşlem başarısız: ${errData.error || 'Bilinmeyen hata'}`);
       }
     } catch (err) {
       console.error(err);
       alert('Sunucu hatası. Backend çalışıyor mu veya internet bağlantınız var mı?');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -566,6 +583,7 @@ export default function WalletManager() {
               </Box>
               <Button 
                 onClick={handleSubmit} 
+                disabled={submitting}
                 variant="contained" 
                 sx={{ 
                   bgcolor: type === 'DEPOSIT' ? '#00c853' : '#d32f2f',
@@ -580,7 +598,7 @@ export default function WalletManager() {
                   }
                 }}
               >
-                {editMode ? 'GÜNCELLE' : 'ONAYLA'}
+                {submitting ? 'İŞLENİYOR...' : (editMode ? 'GÜNCELLE' : 'ONAYLA')}
               </Button>
             </Paper>
         </DialogContent>
