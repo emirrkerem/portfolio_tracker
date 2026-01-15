@@ -4,4 +4,4 @@ yfinance
 pandas
 requests
 gunicorn
-
+psycopg2-binary

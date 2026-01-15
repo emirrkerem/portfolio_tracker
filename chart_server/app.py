@@ -37,6 +37,8 @@ import time
 from threading import Timer
 import logging
 from logging.handlers import RotatingFileHandler
+import psycopg2
+import psycopg2.extras
 
 # --- AYARLAR VE YOL TANIMLAMALARI ---
 if getattr(sys, 'frozen', False):
@@ -64,12 +66,50 @@ CORS(app)
 # --- VERITABANI (SQLite) AYARLARI ---
 DATABASE = os.path.join(STORAGE_DIR, 'borsa.db')
 
+# --- VERITABANI WRAPPER (SQLite ve PostgreSQL Uyumluluğu İçin) ---
+class DBConnection:
+    def __init__(self, url=None):
+        self.is_postgres = False
+        if url:
+            self.is_postgres = True
+            self.conn = psycopg2.connect(url, cursor_factory=psycopg2.extras.RealDictCursor)
+        else:
+            self.conn = sqlite3.connect(DATABASE)
+            self.conn.row_factory = sqlite3.Row
+
+    def execute(self, query, params=()):
+        if self.is_postgres:
+            # SQLite (?) -> Postgres (%s) dönüşümü
+            query = query.replace('?', '%s')
+        
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute(query, params)
+            return cursor
+        except Exception as e:
+            self.conn.rollback()
+            raise e
+
+    def commit(self):
+        self.conn.commit()
+
+    def close(self):
+        self.conn.close()
+        
+    # Pandas uyumluluğu için
+    def cursor(self):
+        return self.conn.cursor()
+
 def create_tables(db):
     """Veritabanı tablolarını oluşturur."""
+    
+    # Veritabanı tipine göre ID tanımı
+    id_type = "SERIAL PRIMARY KEY" if db.is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
+    
     # 1. Kullanıcılar Tablosu
-    db.execute('''
+    db.execute(f'''
         CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {id_type},
             username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
             is_public INTEGER DEFAULT 0,
@@ -78,9 +118,9 @@ def create_tables(db):
     ''')
 
     # 2. İşlemler Tablosu (Transactions)
-    db.execute('''
+    db.execute(f'''
         CREATE TABLE IF NOT EXISTS transactions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {id_type},
             user_id INTEGER NOT NULL,
             symbol TEXT NOT NULL,
             quantity REAL NOT NULL,
@@ -94,9 +134,9 @@ def create_tables(db):
     ''')
 
     # 3. Cüzdan Tablosu (Wallet)
-    db.execute('''
+    db.execute(f'''
         CREATE TABLE IF NOT EXISTS wallet (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {id_type},
             user_id INTEGER NOT NULL,
             type TEXT NOT NULL,
             amount REAL NOT NULL,
@@ -106,9 +146,9 @@ def create_tables(db):
     ''')
 
     # 4. Hedefler Tablosu (Targets)
-    db.execute('''
+    db.execute(f'''
         CREATE TABLE IF NOT EXISTS targets (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {id_type},
             user_id INTEGER NOT NULL,
             startingAmount REAL,
             startDate TEXT,
@@ -120,9 +160,9 @@ def create_tables(db):
     ''')
 
     # 5. Arkadaşlık Tablosu
-    db.execute('''
+    db.execute(f'''
         CREATE TABLE IF NOT EXISTS friendships (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {id_type},
             user_id INTEGER NOT NULL,
             friend_id INTEGER NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -133,9 +173,9 @@ def create_tables(db):
     ''')
 
     # 6. Arkadaşlık İstekleri Tablosu
-    db.execute('''
+    db.execute(f'''
         CREATE TABLE IF NOT EXISTS friend_requests (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {id_type},
             sender_id INTEGER NOT NULL,
             receiver_id INTEGER NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -157,14 +197,14 @@ def get_db():
     """Veritabanı bağlantısını alır veya oluşturur."""
     db = getattr(g, '_database', None)
     if db is None:
-        db = g._database = sqlite3.connect(DATABASE)
-        # Sorgu sonuçlarına isimle erişebilmek için (row['username'] gibi)
-        db.row_factory = sqlite3.Row
+        # DATABASE_URL varsa Postgres, yoksa SQLite
+        database_url = os.environ.get('DATABASE_URL')
+        db = g._database = DBConnection(database_url)
         
         # Tablo kontrolü (Dosya silindiyse otomatik oluştur)
         try:
             db.execute('SELECT 1 FROM users LIMIT 1')
-        except sqlite3.OperationalError:
+        except Exception:
             create_tables(db)
             
     return db
@@ -721,7 +761,12 @@ def handle_portfolio():
 
         try:
             # Veritabanından işlemleri çek
-            df = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = ?", db, params=(user_id,))
+            # Pandas read_sql_query raw connection ister
+            if db.is_postgres:
+                # Postgres için %s kullan
+                df = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = %s", db.conn, params=(user_id,))
+            else:
+                df = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = ?", db.conn, params=(user_id,))
             
             if not df.empty:
                 # Sütun isimlerini düzelt (total_cost -> totalCost)
@@ -791,7 +836,10 @@ def get_transactions():
     if cached: return jsonify(cached)
 
     try:
-        df = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = ?", db, params=(user_id,))
+        if db.is_postgres:
+            df = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = %s", db.conn, params=(user_id,))
+        else:
+            df = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = ?", db.conn, params=(user_id,))
         
         if not df.empty:
             # Sütun isimlerini frontend ile uyumlu hale getir (total_cost -> totalCost)
@@ -917,7 +965,10 @@ def handle_wallet():
         if cached: return jsonify(cached)
 
         try:
-            df = pd.read_sql_query("SELECT * FROM wallet WHERE user_id = ?", db, params=(user_id,))
+            if db.is_postgres:
+                df = pd.read_sql_query("SELECT * FROM wallet WHERE user_id = %s", db.conn, params=(user_id,))
+            else:
+                df = pd.read_sql_query("SELECT * FROM wallet WHERE user_id = ?", db.conn, params=(user_id,))
             
             if not df.empty:
                 # Bakiye Hesaplama (DEPOSIT - WITHDRAW)
@@ -1134,8 +1185,12 @@ def calculate_portfolio_history(user_id, db):
     
     try:
         # Verileri SQL'den çek
-        df_wallet = pd.read_sql_query("SELECT * FROM wallet WHERE user_id = ?", db, params=(user_id,))
-        df_tx = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = ?", db, params=(user_id,))
+        if db.is_postgres:
+            df_wallet = pd.read_sql_query("SELECT * FROM wallet WHERE user_id = %s", db.conn, params=(user_id,))
+            df_tx = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = %s", db.conn, params=(user_id,))
+        else:
+            df_wallet = pd.read_sql_query("SELECT * FROM wallet WHERE user_id = ?", db.conn, params=(user_id,))
+            df_tx = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = ?", db.conn, params=(user_id,))
 
         if df_wallet.empty and df_tx.empty:
              return []
@@ -1490,7 +1545,10 @@ def get_friend_holdings(friend_id):
 
     try:
         # İşlemleri çek
-        df = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = ?", db, params=(friend_id,))
+        if db.is_postgres:
+            df = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = %s", db.conn, params=(friend_id,))
+        else:
+            df = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = ?", db.conn, params=(friend_id,))
         if df.empty:
             return jsonify([])
 
