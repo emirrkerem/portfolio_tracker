@@ -457,19 +457,26 @@ def download_logo_internal(symbol):
 # Logoları sunmak için route (Exe modunda veya Flask serve modunda çalışır)
 @app.route('/logos/<path:filename>')
 def serve_logo(filename):
-    # 1. Önce indirilenler (storage) klasörüne bak - En güncel buradadır
+    # 1. Önce geliştirme ortamındaki public/logos klasörüne bak (Öncelik Kullanıcı Dosyalarında)
+    if HAS_PUBLIC:
+        public_path = os.path.join(PUBLIC_LOGOS_DIR, filename)
+        if os.path.exists(public_path):
+            return send_from_directory(PUBLIC_LOGOS_DIR, filename)
+
+    # 2. Sonra indirilenler (storage) klasörüne bak
     storage_path = os.path.join(LOGOS_DIR, filename)
     if os.path.exists(storage_path):
         return send_from_directory(LOGOS_DIR, filename)
     
-    # 2. Yoksa, projenin içindeki statik logolara bak (dist/logos) - Yedek
-    # Bu sayede popüler logoları projeye dahil ederseniz API çağrısı yapılmaz.
+    # 3. Yoksa, projenin içindeki statik logolara bak (dist/logos) - Production Yedek
     static_logo_path = os.path.join(app.static_folder, 'logos', filename)
     if os.path.exists(static_logo_path):
         return send_from_directory(os.path.join(app.static_folder, 'logos'), filename)
     
-    # 3. İkisinde de yoksa indir (Otomatik Kurtarma)
+    # 4. Hiçbirinde yoksa indir (Otomatik Kurtarma)
     symbol = os.path.splitext(filename)[0]
+    import urllib.parse
+    symbol = urllib.parse.unquote(symbol)
     download_logo_internal(symbol)
     
     # İndirme sonrası tekrar kontrol et

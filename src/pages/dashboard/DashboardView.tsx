@@ -972,7 +972,7 @@ export default function DashboardView() {
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                               <Box sx={{ position: 'relative' }}>
                                 <Avatar 
-                                  src={`${API_URL}/logos/${result.symbol}.png`} 
+                                  src={`${API_URL}/logos/${encodeURIComponent(result.symbol)}.png`} 
                                   alt={result.symbol}
                                   sx={{ 
                                     width: 32, 
@@ -1031,7 +1031,7 @@ export default function DashboardView() {
                     <TableCell component="th" scope="row" sx={{ pl: '69px', borderLeft: 'none', color: 'white' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Avatar 
-                          src={`${API_URL}/logos/${stock.symbol}.png`} 
+                          src={`${API_URL}/logos/${encodeURIComponent(stock.symbol)}.png`} 
                           alt={stock.symbol}
                           sx={{ 
                             width: 32, 
@@ -1117,7 +1117,7 @@ export default function DashboardView() {
                 >
                   <ListItemAvatar>
                     <Avatar 
-                      src={`${API_URL}/logos/${asset.symbol}.png`}
+                      src={`${API_URL}/logos/${encodeURIComponent(asset.symbol)}.png`}
                       alt={asset.symbol}
                       sx={{ 
                         bgcolor: 'rgba(255,255,255,0.1)', 
