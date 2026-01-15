@@ -75,15 +75,18 @@ export default function TargetView() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+        const headers = { 'X-User-ID': user.id || '1' };
+
         // 1. Mevcut Portföy Değerini Çek
-        const portRes = await fetch('http://localhost:5000/api/portfolio/history');
+        const portRes = await fetch('http://localhost:5000/api/portfolio/history', { headers });
         const portData = await portRes.json();
         if (Array.isArray(portData) && portData.length > 0) {
           setPortfolioHistory(portData);
         }
 
         // 2. Kayıtlı Hedefi Çek
-        const targetRes = await fetch('http://localhost:5000/api/targets');
+        const targetRes = await fetch('http://localhost:5000/api/targets', { headers });
         const targetData = await targetRes.json();
         
         // Null check ve String dönüşümü (TextField çökmesini önler)
@@ -98,7 +101,7 @@ export default function TargetView() {
         if (targetData.monthlyContribution !== undefined && targetData.monthlyContribution !== null) setMonthlyContribution(String(targetData.monthlyContribution));
         
         // 3. Cüzdan İşlemlerini Çek (Takip sekmesi için)
-        const walletRes = await fetch('http://localhost:5000/api/wallet');
+        const walletRes = await fetch('http://localhost:5000/api/wallet', { headers });
         const walletData = await walletRes.json();
         if (walletData.transactions) {
             setWalletTransactions(walletData.transactions);
@@ -128,9 +131,12 @@ export default function TargetView() {
   const handleSave = async () => {
     setSaving(true);
     try {
+      const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+      const headers = { 'Content-Type': 'application/json', 'X-User-ID': user.id || '1' };
+
       await fetch('http://localhost:5000/api/targets', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify({ 
           startingAmount, 
           startDate,
@@ -148,7 +154,9 @@ export default function TargetView() {
 
   const handleDeletePlan = async () => {
     try {
-      await fetch('http://localhost:5000/api/targets', { method: 'DELETE' });
+      const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+      const headers = { 'X-User-ID': user.id || '1' };
+      await fetch('http://localhost:5000/api/targets', { method: 'DELETE', headers });
       // State'leri sıfırla
       setStartingAmount('0');
       setStartDate(new Date().toISOString().split('T')[0]);

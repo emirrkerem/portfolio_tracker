@@ -31,7 +31,9 @@ export default function ComparisonView() {
   useEffect(() => {
     const fetchPortfolio = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/portfolio/history');
+        const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+        const headers = { 'X-User-ID': user.id || '1' };
+        const res = await fetch('http://localhost:5000/api/portfolio/history', { headers });
         const data = await res.json();
         if (Array.isArray(data)) {
           setPortfolioData(data);
@@ -100,7 +102,8 @@ export default function ComparisonView() {
     const startBenchmarkPrice = benchmarkData[0].price;
 
     return validPortfolioData.map((pItem, i) => {
-        const dateStr = pItem.date;
+        // Tarih formatını eşle (YYYY-MM-DD) - Saat bilgisini yoksay
+        const dateStr = pItem.date.split(' ')[0];
         let bPrice = benchmarkMap.get(dateStr);
         
         // Eğer o gün piyasa kapalıysa (fiyat yoksa), son bilinen fiyatı kullan

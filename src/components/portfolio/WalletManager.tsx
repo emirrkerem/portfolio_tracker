@@ -62,7 +62,9 @@ export default function WalletManager() {
   useEffect(() => {
     const fetchWalletData = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/wallet');
+        const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+        const headers = { 'X-User-ID': user.id || '1' };
+        const res = await fetch('http://localhost:5000/api/wallet', { headers });
         const data = await res.json();
         if (data.transactions) {
           setTransactions(data.transactions);
@@ -105,11 +107,14 @@ export default function WalletManager() {
   const handleConfirmDelete = async () => {
     if (itemToDelete === null) return;
     try {
+      const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+      const headers = { 'X-User-ID': user.id || '1' };
       await fetch(`http://localhost:5000/api/wallet?id=${itemToDelete}`, {
         method: 'DELETE',
+        headers
       });
       // Listeyi güncelle
-      const res = await fetch('http://localhost:5000/api/wallet');
+      const res = await fetch('http://localhost:5000/api/wallet', { headers });
       const data = await res.json();
       if (data.transactions) {
         setTransactions(data.transactions);
@@ -221,10 +226,13 @@ export default function WalletManager() {
     }
 
     try {
+      const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+      const headers = { 'Content-Type': 'application/json', 'X-User-ID': user.id || '1' };
+
       if (editMode && editingId !== null) {
         await fetch('http://localhost:5000/api/wallet', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: headers,
           body: JSON.stringify({
             id: editingId,
             type,
@@ -235,7 +243,7 @@ export default function WalletManager() {
       } else {
         await fetch('http://localhost:5000/api/wallet', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: headers,
           body: JSON.stringify({
             type,
             amount: Number(amount),

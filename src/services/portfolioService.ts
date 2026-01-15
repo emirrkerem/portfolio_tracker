@@ -1,6 +1,12 @@
 export const tradeStock = async (symbol: string, quantity: number, price: number, type: 'BUY' | 'SELL', date: string, commission: number) => {
   if (!symbol || quantity <= 0 || price <= 0) return;
 
+  const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+  const headers = { 
+      'Content-Type': 'application/json',
+      'X-User-ID': String(user.id || '1') 
+  };
+
   const stockValue = quantity * price;
   // Cüzdan hareketi: BUY ise (Hisse Değeri + Komisyon) düşer, SELL ise (Hisse Değeri - Komisyon) eklenir.
   const walletAmount = type === 'BUY' 
@@ -13,7 +19,7 @@ export const tradeStock = async (symbol: string, quantity: number, price: number
     // 1. İşlemi Kaydet (Hisse Ekle)
     await fetch('http://localhost:5000/api/portfolio', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: headers,
       body: JSON.stringify({
         symbol,
         quantity,
@@ -27,7 +33,7 @@ export const tradeStock = async (symbol: string, quantity: number, price: number
     // 2. Cüzdan Bakiyesini Güncelle (Özel Tiplerle)
     await fetch('http://localhost:5000/api/wallet', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: headers,
       body: JSON.stringify({
         type: type === 'BUY' ? 'STOCK_BUY' : 'STOCK_SELL',
         amount: walletAmount,
@@ -43,9 +49,12 @@ export const tradeStock = async (symbol: string, quantity: number, price: number
 };
 
 export const deleteTransaction = async (id: number) => {
+  const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+  const headers = { 'X-User-ID': String(user.id || '1') };
   try {
     await fetch(`http://localhost:5000/api/transactions?id=${id}`, {
       method: 'DELETE',
+      headers: headers
     });
   } catch (error) {
     console.error("Delete error:", error);
@@ -53,10 +62,12 @@ export const deleteTransaction = async (id: number) => {
 };
 
 export const updateTransaction = async (transaction: any) => {
+  const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+  const headers = { 'Content-Type': 'application/json', 'X-User-ID': String(user.id || '1') };
   try {
     await fetch('http://localhost:5000/api/transactions', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: headers,
       body: JSON.stringify(transaction)
     });
   } catch (error) {

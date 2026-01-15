@@ -63,17 +63,20 @@ export default function PortfolioView() {
 
   const fetchData = async () => {
     try {
+      const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+      const headers = { 'X-User-ID': String(user.id || '1') };
+
       // 1. Cüzdan Bakiyesi
-      const walletRes = await fetch('http://localhost:5000/api/wallet');
+      const walletRes = await fetch('http://localhost:5000/api/wallet', { headers });
       const walletData = await walletRes.json();
       setWalletBalance(walletData.balance || 0);
 
       // 2. Portföy Hisseleri
-      const portfolioRes = await fetch('http://localhost:5000/api/portfolio');
+      const portfolioRes = await fetch('http://localhost:5000/api/portfolio', { headers });
       const portfolioData = await portfolioRes.json();
 
       // 3. Son İşlemleri Çek
-      const txRes = await fetch('http://localhost:5000/api/transactions');
+      const txRes = await fetch('http://localhost:5000/api/transactions', { headers });
       const txData = await txRes.json();
       if (Array.isArray(txData)) {
         setRecentTransactions(txData.slice(0, 5));

@@ -23,6 +23,9 @@ def global_exception_handler(exc_type, exc_value, exc_traceback):
 sys.excepthook = global_exception_handler
 
 from flask import Flask, request, jsonify, send_from_directory
+from flask import g
+import sqlite3
+from werkzeug.security import generate_password_hash, check_password_hash
 from flask_cors import CORS
 import requests
 import yfinance as yf
@@ -58,6 +61,182 @@ else:
 app = Flask(__name__, static_folder=static_folder, static_url_path='')
 CORS(app)
 
+# --- VERITABANI (SQLite) AYARLARI ---
+DATABASE = os.path.join(STORAGE_DIR, 'borsa.db')
+
+def create_tables(db):
+    """Veritabanı tablolarını oluşturur."""
+    # 1. Kullanıcılar Tablosu
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            is_public INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    # 2. İşlemler Tablosu (Transactions)
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            symbol TEXT NOT NULL,
+            quantity REAL NOT NULL,
+            price REAL NOT NULL,
+            total_cost REAL NOT NULL,
+            total_commission REAL NOT NULL,
+            date TEXT NOT NULL,
+            type TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+
+    # 3. Cüzdan Tablosu (Wallet)
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS wallet (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            type TEXT NOT NULL,
+            amount REAL NOT NULL,
+            date TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+
+    # 4. Hedefler Tablosu (Targets)
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS targets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            startingAmount REAL,
+            startDate TEXT,
+            years INTEGER,
+            returnRate REAL,
+            monthlyContribution REAL,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+
+    # 5. Arkadaşlık Tablosu
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS friendships (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            friend_id INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id),
+            FOREIGN KEY (friend_id) REFERENCES users (id),
+            UNIQUE(user_id, friend_id)
+        )
+    ''')
+    
+    # Varsayılan Kullanıcı Oluştur
+    try:
+        db.execute('INSERT OR IGNORE INTO users (id, username, password_hash) VALUES (1, "demo", "pbkdf2:sha256:260000$placeholder$placeholder")')
+    except:
+        pass
+    
+    db.commit()
+
+def get_db():
+    """Veritabanı bağlantısını alır veya oluşturur."""
+    db = getattr(g, '_database', None)
+    if db is None:
+        db = g._database = sqlite3.connect(DATABASE)
+        # Sorgu sonuçlarına isimle erişebilmek için (row['username'] gibi)
+        db.row_factory = sqlite3.Row
+        
+        # Tablo kontrolü (Dosya silindiyse otomatik oluştur)
+        try:
+            db.execute('SELECT 1 FROM users LIMIT 1')
+        except sqlite3.OperationalError:
+            create_tables(db)
+            
+    return db
+
+@app.teardown_appcontext
+def close_connection(exception):
+    """İstek tamamlandığında veritabanı bağlantısını kapatır."""
+    db = getattr(g, '_database', None)
+    if db is not None:
+        db.close()
+
+def init_db():
+    """Gerekli tabloları oluşturur."""
+    with app.app_context():
+        db = get_db()
+        create_tables(db)
+        print("[DB] Veritabanı ve tablolar kontrol edildi/oluşturuldu.")
+
+# --- KIMLIK DOGRULAMA (AUTH) ---
+
+@app.route('/api/register', methods=['POST'])
+def register():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+
+    if not username or not password:
+        return jsonify({'error': 'Kullanıcı adı ve şifre gereklidir.'}), 400
+
+    db = get_db()
+    
+    try:
+        # Kullanıcı var mı kontrol et
+        cur = db.execute('SELECT id FROM users WHERE username = ?', (username,))
+        if cur.fetchone() is not None:
+            return jsonify({'error': 'Bu kullanıcı adı zaten alınmış.'}), 409
+
+        # Şifreyi hashle ve kaydet
+        hashed_pw = generate_password_hash(password)
+        db.execute('INSERT INTO users (username, password_hash) VALUES (?, ?)', (username, hashed_pw))
+        db.commit()
+        
+        return jsonify({'status': 'success', 'message': 'Kayıt başarılı.'}), 201
+    except Exception as e:
+        app.logger.error(f"Register Error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+
+    if not username or not password:
+        return jsonify({'error': 'Kullanıcı adı ve şifre gereklidir.'}), 400
+
+    db = get_db()
+    
+    try:
+        cur = db.execute('SELECT * FROM users WHERE username = ?', (username,))
+        user = cur.fetchone()
+
+        if user is None or not check_password_hash(user['password_hash'], password):
+            return jsonify({'error': 'Geçersiz kullanıcı adı veya şifre.'}), 401
+
+        # Başarılı giriş - Kullanıcı bilgilerini döndür
+        return jsonify({
+            'status': 'success',
+            'user': {
+                'id': user['id'],
+                'username': user['username'],
+                'is_public': bool(user['is_public'])
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"Login Error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+# --- KULLANICI YARDIMCISI ---
+def get_current_user_id():
+    user_id = request.headers.get('X-User-ID')
+    if user_id:
+        return int(user_id)
+    return 1
+
 # --- LOGLAMA (HATA KAYIT) AYARLARI ---
 # Storage klasörünün varlığından emin ol
 os.makedirs(STORAGE_DIR, exist_ok=True)
@@ -76,7 +255,7 @@ logging.basicConfig(
 )
 
 # Flask ve Werkzeug loglarını da yakala
-logging.getLogger('werkzeug').setLevel(logging.INFO)
+logging.getLogger('werkzeug').setLevel(logging.ERROR)
 app.logger.setLevel(logging.INFO)
 
 # --- ÖNBELLEKLEME (CACHING) ---
@@ -240,6 +419,11 @@ def get_stock_data():
     try:
         # Veriyi çek
         if start:
+            # Tarih formatı düzeltmesi (YYYY-MM-DD HH:MM -> YYYY-MM-DD)
+            # yfinance bazen saat bilgisini sevmez ("unconverted data remains" hatasi icin)
+            if ' ' in start: start = start.split(' ')[0]
+            if end and ' ' in end: end = end.split(' ')[0]
+            
             df = yf.download(tickers=symbol, start=start, end=end, interval=interval, progress=False)
         else:
             df = yf.download(tickers=symbol, period=period, interval=interval, progress=False)
@@ -509,41 +693,37 @@ def get_top25_list():
     ]
     return jsonify(top25)
 
-# Portföy Yönetimi (Transaction Bazlı - CSV)
-TRANSACTIONS_FILE = os.path.join(STORAGE_DIR, 'transactions.csv')
-WALLET_FILE = os.path.join(STORAGE_DIR, 'wallet.csv')
-TARGETS_FILE = os.path.join(STORAGE_DIR, 'targets.json')
+# Portföy Yönetimi (Transaction Bazlı - SQLite)
 
 @app.route('/api/portfolio', methods=['GET', 'POST'])
 def handle_portfolio():
+    user_id = get_current_user_id()
+    db = get_db()
+
     # GET: İşlemleri oku ve portföy özetini hesapla
     if request.method == 'GET':
         # Cache Kontrolü
-        cached = get_from_cache('user_portfolio_summary')
+        cached = get_from_cache(f'user_{user_id}_portfolio_summary')
         if cached: return jsonify(cached)
 
-        if os.path.exists(TRANSACTIONS_FILE):
-            try:
-                df = pd.read_csv(TRANSACTIONS_FILE)
-                if df.empty:
-                    return jsonify([])
-                
-                # Header kontrolü: 'symbol' sütunu yoksa ve 7 sütun varsa (Headerless okuma)
-                if 'symbol' not in df.columns and len(df.columns) == 7:
-                    df = pd.read_csv(TRANSACTIONS_FILE, header=None, names=['symbol', 'quantity', 'price', 'totalCost', 'totalCommission', 'date', 'type'])
+        try:
+            # Veritabanından işlemleri çek
+            df = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = ?", db, params=(user_id,))
+            
+            if not df.empty:
+                # Sütun isimlerini düzelt (total_cost -> totalCost)
+                df.rename(columns={'total_cost': 'totalCost', 'total_commission': 'totalCommission'}, inplace=True)
 
                 # İşlem tipine göre miktar hesapla (BUY: +, SELL: -)
                 df['signed_quantity'] = df.apply(lambda x: x['quantity'] if x['type'] == 'BUY' else -x['quantity'], axis=1)
 
                 # İşlemleri hisse bazında grupla ve özetle
-                # quantity ve totalCost'u topla
                 portfolio = df.groupby('symbol').agg({
                     'signed_quantity': 'sum',
                     'totalCost': 'sum',
                     'totalCommission': 'sum'
                 }).reset_index()
                 
-                # signed_quantity ismini quantity olarak düzelt
                 portfolio.rename(columns={'signed_quantity': 'quantity'}, inplace=True)
                 
                 # Ortalama maliyeti hesapla (totalCost / quantity)
@@ -555,12 +735,12 @@ def handle_portfolio():
                 portfolio = portfolio[portfolio['quantity'] > 0]
                 
                 result = portfolio.to_dict(orient='records')
-                save_to_cache('user_portfolio_summary', result)
+                save_to_cache(f'user_{user_id}_portfolio_summary', result)
                 return jsonify(result)
-            except Exception as e:
-                print(f"CSV Okuma Hatası: {e}")
-                return jsonify([])
-        return jsonify([])
+            return jsonify([])
+        except Exception as e:
+            app.logger.error(f"Portfolio Read Error: {e}", exc_info=True)
+            return jsonify([])
     
     # POST: Yeni işlem ekle (Append)
     if request.method == 'POST':
@@ -568,57 +748,41 @@ def handle_portfolio():
             data = request.json
             qty = float(data.get('quantity', 0))
             price = float(data.get('price', 0))
-            # Tek bir işlem satırı oluştur
-            new_transaction = {
-                'symbol': data.get('symbol'),
-                'quantity': qty,
-                'price': price,
-                'totalCost': qty * price,
-                'totalCommission': float(data.get('commission', (qty * price) * 0.001)), # Kullanıcıdan gelen veya varsayılan
-                'date': data.get('date', datetime.datetime.now().isoformat()), # Kullanıcıdan gelen veya şu an
-                'type': data.get('type', 'BUY')
-            }
             
-            df = pd.DataFrame([new_transaction])
-            
-            # Dosya yoksa başlıkları yaz, varsa sadece veriyi ekle (mode='a')
-            header = not os.path.exists(TRANSACTIONS_FILE)
-            
-            # Dosya varsa ve son karakter yeni satır değilse ekle (Bozulmayı önlemek için)
-            if os.path.exists(TRANSACTIONS_FILE) and os.path.getsize(TRANSACTIONS_FILE) > 0:
-                with open(TRANSACTIONS_FILE, 'rb+') as f:
-                    f.seek(-1, 2)
-                    if f.read(1) != b'\n':
-                        f.write(b'\n')
+            total_cost = qty * price
+            total_commission = float(data.get('commission', total_cost * 0.001))
+            date_val = data.get('date', datetime.datetime.now().isoformat())
+            tx_type = data.get('type', 'BUY')
+            symbol = data.get('symbol')
 
-            df.to_csv(TRANSACTIONS_FILE, mode='a', header=header, index=False)
+            db.execute('''
+                INSERT INTO transactions (user_id, symbol, quantity, price, total_cost, total_commission, date, type)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (user_id, symbol, qty, price, total_cost, total_commission, date_val, tx_type))
+            db.commit()
             
             clear_user_cache() # Veri değişti, cache'i temizle
             return jsonify({"status": "success", "data": data})
         except Exception as e:
-            app.logger.error(f"CSV Kayıt Hatası: {e}", exc_info=True)
+            app.logger.error(f"Transaction Insert Error: {e}", exc_info=True)
             return jsonify({'error': str(e)}), 500
 
 # İşlem Geçmişi (Ham Veri)
 @app.route('/api/transactions', methods=['GET'])
 def get_transactions():
+    user_id = get_current_user_id()
+    db = get_db()
+
     # Cache Kontrolü
-    cached = get_from_cache('user_transactions')
+    cached = get_from_cache(f'user_{user_id}_transactions')
     if cached: return jsonify(cached)
 
-    if os.path.exists(TRANSACTIONS_FILE):
-        try:
-            df = pd.read_csv(TRANSACTIONS_FILE)
-            
-            # Header kontrolü
-            if not df.empty and 'symbol' not in df.columns and len(df.columns) == 7:
-                df = pd.read_csv(TRANSACTIONS_FILE, header=None, names=['symbol', 'quantity', 'price', 'totalCost', 'totalCommission', 'date', 'type'])
-            
-            # Satır numarasını ID olarak ekle (Silme işlemi için)
-            df['id'] = df.index
-
-            if df.empty:
-                return jsonify([])
+    try:
+        df = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = ?", db, params=(user_id,))
+        
+        if not df.empty:
+            # Sütun isimlerini frontend ile uyumlu hale getir (total_cost -> totalCost)
+            df.rename(columns={'total_cost': 'totalCost', 'total_commission': 'totalCommission'}, inplace=True)
 
             # Tarihe göre sırala (En yeni en üstte)
             if 'date' in df.columns:
@@ -628,80 +792,66 @@ def get_transactions():
                 df['date'] = df['date'].dt.strftime('%Y-%m-%dT%H:%M')
             
             result = df.to_dict(orient='records')
-            save_to_cache('user_transactions', result)
+            save_to_cache(f'user_{user_id}_transactions', result)
             return jsonify(result)
-        except Exception as e:
-            print(f"Transaction Read Error: {e}")
-            return jsonify([])
-    return jsonify([])
+        return jsonify([])
+    except Exception as e:
+        print(f"Transaction Read Error: {e}")
+        return jsonify([])
 
 # İşlem Silme
 @app.route('/api/transactions', methods=['DELETE'])
 def delete_transaction():
+    user_id = get_current_user_id()
+    db = get_db()
     try:
         tx_id = int(request.args.get('id'))
-        if os.path.exists(TRANSACTIONS_FILE):
-            df = pd.read_csv(TRANSACTIONS_FILE)
+        
+        # Önce işlemi bul (Wallet sync için)
+        cur = db.execute("SELECT * FROM transactions WHERE id = ? AND user_id = ?", (tx_id, user_id))
+        tx = cur.fetchone()
+        
+        if tx:
+            # İşlemi sil
+            db.execute("DELETE FROM transactions WHERE id = ?", (tx_id,))
             
-            # Header kontrolü (Okuma mantığı get_transactions ile aynı olmalı)
-            if not df.empty and 'symbol' not in df.columns and len(df.columns) == 7:
-                df = pd.read_csv(TRANSACTIONS_FILE, header=None, names=['symbol', 'quantity', 'price', 'totalCost', 'totalCommission', 'date', 'type'])
-            
-            if tx_id in df.index:
-                # Silinmeden önce yedeğini al (Wallet sync için)
-                deleted_tx = df.loc[tx_id].to_dict()
+            # --- CÜZDAN SENKRONİZASYONU ---
+            # Transaction silindiğinde, ilgili cüzdan kaydını da bul ve sil
+            try:
+                cost = float(tx['total_cost'])
+                comm = float(tx['total_commission'])
+                target_amount = 0
+                target_types = []
 
-                df = df.drop(tx_id)
-                # Kaydederken header durumunu koru
-                has_header = 'symbol' in df.columns
-                df.to_csv(TRANSACTIONS_FILE, index=False, header=has_header)
+                if tx['type'] == 'BUY':
+                    target_amount = cost + comm
+                    target_types = ['STOCK_BUY', 'WITHDRAW']
+                else:
+                    target_amount = max(0, cost - comm)
+                    target_types = ['STOCK_SELL', 'DEPOSIT']
                 
-                # --- CÜZDAN SENKRONİZASYONU (Wallet Sync) ---
-                # Transaction silindiğinde, ilgili cüzdan kaydını da bul ve sil
-                if os.path.exists(WALLET_FILE):
-                    try:
-                        df_wallet = pd.read_csv(WALLET_FILE)
-                        if 'amount' not in df_wallet.columns:
-                            df_wallet = pd.read_csv(WALLET_FILE, header=None, names=['date', 'type', 'amount'])
-                        
-                        # Silinen işlemden beklenen cüzdan etkisini hesapla
-                        cost = float(deleted_tx['totalCost'])
-                        comm = float(deleted_tx['totalCommission'])
-                        target_amount = 0
-                        target_types = []
-
-                        if deleted_tx['type'] == 'BUY':
-                            target_amount = cost + comm
-                            target_types = ['STOCK_BUY', 'WITHDRAW'] # Yeni ve eski tip desteği
-                        else:
-                            target_amount = max(0, cost - comm)
-                            target_types = ['STOCK_SELL', 'DEPOSIT'] # Yeni ve eski tip desteği
-                        
-                        # Eşleşen kaydı bul: Tarih, Tip ve Tutar aynı olmalı
-                        # Not: Tarih string olduğu için tam eşleşme arıyoruz.
-                        # Float karşılaştırması için küçük bir tolerans (0.01) kullanıyoruz.
-                        tolerance = 0.01
-                        
-                        matches = df_wallet[
-                            (df_wallet['date'] == deleted_tx['date']) & 
-                            (df_wallet['type'].isin(target_types)) &
-                            (abs(df_wallet['amount'] - target_amount) < tolerance)
-                        ]
-                        
-                        if not matches.empty:
-                            # İlk eşleşeni sil
-                            wallet_idx_to_drop = matches.index[0]
-                            df_wallet = df_wallet.drop(wallet_idx_to_drop)
-                            df_wallet.to_csv(WALLET_FILE, index=False)
-                            print(f"Transaction {tx_id} silindiği için Wallet kaydı {wallet_idx_to_drop} da silindi.")
-                            
-                    except Exception as w_e:
-                        print(f"Wallet sync error during delete: {w_e}")
-
-                clear_user_cache() # Veri değişti
-                return jsonify({"status": "success"})
-            else:
-                return jsonify({"error": "Transaction not found"}), 404
+                # Eşleşen cüzdan kaydını bul (Tarih, Tip ve Tutar yaklaşık eşit)
+                # SQLite'da float karşılaştırması için aralık kullanıyoruz
+                db.execute('''
+                    DELETE FROM wallet 
+                    WHERE id IN (
+                        SELECT id FROM wallet 
+                        WHERE user_id = ? 
+                        AND date = ? 
+                        AND type IN (?, ?) 
+                        AND ABS(amount - ?) < 0.01
+                        LIMIT 1
+                    )
+                ''', (user_id, tx['date'], target_types[0], target_types[1], target_amount))
+                
+            except Exception as w_e:
+                print(f"Wallet sync error during delete: {w_e}")
+            
+            db.commit()
+            clear_user_cache()
+            return jsonify({"status": "success"})
+        else:
+            return jsonify({"error": "Transaction not found"}), 404
     except Exception as e:
         app.logger.error(f"Transaction Delete Error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
@@ -709,33 +859,34 @@ def delete_transaction():
 # İşlem Güncelleme
 @app.route('/api/transactions', methods=['PUT'])
 def update_transaction():
+    user_id = get_current_user_id()
+    db = get_db()
     try:
         data = request.json
         tx_id = int(data.get('id'))
-        if os.path.exists(TRANSACTIONS_FILE):
-            df = pd.read_csv(TRANSACTIONS_FILE)
+        
+        # Mevcut veriyi çek
+        cur = db.execute("SELECT * FROM transactions WHERE id = ? AND user_id = ?", (tx_id, user_id))
+        tx = cur.fetchone()
+        
+        if tx:
+            qty = float(data.get('quantity', tx['quantity']))
+            price = float(data.get('price', tx['price']))
+            total_cost = qty * price
+            total_commission = float(data.get('commission', tx['total_commission']))
+            date_val = data.get('date', tx['date'])
             
-            # Header check
-            if not df.empty and 'symbol' not in df.columns and len(df.columns) == 7:
-                df = pd.read_csv(TRANSACTIONS_FILE, header=None, names=['symbol', 'quantity', 'price', 'totalCost', 'totalCommission', 'date', 'type'])
+            db.execute('''
+                UPDATE transactions 
+                SET quantity = ?, price = ?, total_cost = ?, total_commission = ?, date = ?
+                WHERE id = ?
+            ''', (qty, price, total_cost, total_commission, date_val, tx_id))
+            db.commit()
             
-            if tx_id in df.index:
-                # Alanları güncelle
-                qty = float(data.get('quantity', df.at[tx_id, 'quantity']))
-                price = float(data.get('price', df.at[tx_id, 'price']))
-                
-                df.at[tx_id, 'quantity'] = qty
-                df.at[tx_id, 'price'] = price
-                df.at[tx_id, 'totalCost'] = qty * price
-                df.at[tx_id, 'totalCommission'] = float(data.get('commission', df.at[tx_id, 'totalCommission']))
-                df.at[tx_id, 'date'] = data.get('date', df.at[tx_id, 'date'])
-                
-                has_header = 'symbol' in df.columns
-                df.to_csv(TRANSACTIONS_FILE, index=False, header=has_header)
-                clear_user_cache() # Veri değişti
-                return jsonify({"status": "success"})
-            else:
-                return jsonify({"error": "Transaction not found"}), 404
+            clear_user_cache()
+            return jsonify({"status": "success"})
+        else:
+            return jsonify({"error": "Transaction not found"}), 404
     except Exception as e:
         app.logger.error(f"Transaction Update Error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
@@ -743,28 +894,19 @@ def update_transaction():
 # Cüzdan Yönetimi (Nakit Giriş/Çıkış)
 @app.route('/api/wallet', methods=['GET', 'POST', 'DELETE', 'PUT'])
 def handle_wallet():
+    user_id = get_current_user_id()
+    db = get_db()
+
     # GET: Bakiyeyi Hesapla
     if request.method == 'GET':
         # Cache Kontrolü
-        cached = get_from_cache('user_wallet')
+        cached = get_from_cache(f'user_{user_id}_wallet')
         if cached: return jsonify(cached)
 
-        if os.path.exists(WALLET_FILE):
-            try:
-                if os.path.getsize(WALLET_FILE) == 0:
-                    return jsonify({'balance': 0.0, 'transactions': []})
-
-                df = pd.read_csv(WALLET_FILE)
-                # Eğer başlıklar yoksa (manuel oluşturulduysa), sütun isimlerini elle ata
-                if 'amount' not in df.columns:
-                    df = pd.read_csv(WALLET_FILE, header=None, names=['date', 'type', 'amount'])
-
-                if df.empty:
-                    return jsonify({'balance': 0.0, 'transactions': []})
-                
-                # ID ekle (Silme işlemi için)
-                df['id'] = df.index
-                
+        try:
+            df = pd.read_sql_query("SELECT * FROM wallet WHERE user_id = ?", db, params=(user_id,))
+            
+            if not df.empty:
                 # Bakiye Hesaplama (DEPOSIT - WITHDRAW)
                 balance = 0.0
                 transactions = df.to_dict(orient='records')
@@ -781,37 +923,27 @@ def handle_wallet():
                     transactions.sort(key=lambda x: x['date'], reverse=True)
                         
                 result = {'balance': balance, 'transactions': transactions}
-                save_to_cache('user_wallet', result)
+                save_to_cache(f'user_{user_id}_wallet', result)
                 return jsonify(result)
-            except Exception as e:
-                print(f"Wallet Read Error: {e}")
-                return jsonify({'balance': 0.0, 'transactions': []})
-        return jsonify({'balance': 0.0, 'transactions': []})
+            return jsonify({'balance': 0.0, 'transactions': []})
+        except Exception as e:
+            print(f"Wallet Read Error: {e}")
+            return jsonify({'balance': 0.0, 'transactions': []})
 
     # POST: Yeni İşlem Ekle
     if request.method == 'POST':
         try:
             data = request.json
-            new_tx = {
-                'date': data.get('date', datetime.datetime.now().isoformat()),
-                'type': data.get('type', 'DEPOSIT'), # DEPOSIT veya WITHDRAW
-                'amount': float(data.get('amount', 0))
-            }
-            df = pd.DataFrame([new_tx])
+            date_val = data.get('date', datetime.datetime.now().isoformat())
+            tx_type = data.get('type', 'DEPOSIT')
+            amount = float(data.get('amount', 0))
             
-            # Dosya yoksa VEYA dosya var ama içi boşsa başlık ekle
-            header = not os.path.exists(WALLET_FILE) or os.path.getsize(WALLET_FILE) == 0
+            db.execute('INSERT INTO wallet (user_id, type, amount, date) VALUES (?, ?, ?, ?)', 
+                       (user_id, tx_type, amount, date_val))
+            db.commit()
             
-            # Dosya varsa ve son karakter yeni satır değilse ekle
-            if os.path.exists(WALLET_FILE) and os.path.getsize(WALLET_FILE) > 0:
-                with open(WALLET_FILE, 'rb+') as f:
-                    f.seek(-1, 2)
-                    if f.read(1) != b'\n':
-                        f.write(b'\n')
-
-            df.to_csv(WALLET_FILE, mode='a', header=header, index=False)
             clear_user_cache() # Veri değişti
-            return jsonify({"status": "success", "data": new_tx})
+            return jsonify({"status": "success"})
         except Exception as e:
             app.logger.error(f"Wallet Post Error: {e}", exc_info=True)
             return jsonify({'error': str(e)}), 500
@@ -821,22 +953,22 @@ def handle_wallet():
         try:
             data = request.json
             tx_id = int(data.get('id'))
-            if os.path.exists(WALLET_FILE):
-                df = pd.read_csv(WALLET_FILE)
-                # Header check
-                if 'amount' not in df.columns:
-                    df = pd.read_csv(WALLET_FILE, header=None, names=['date', 'type', 'amount'])
+            
+            # Mevcut veriyi kontrol et
+            cur = db.execute("SELECT * FROM wallet WHERE id = ? AND user_id = ?", (tx_id, user_id))
+            if cur.fetchone():
+                amount = float(data.get('amount'))
+                tx_type = data.get('type')
+                date_val = data.get('date')
                 
-                if tx_id in df.index:
-                    df.at[tx_id, 'amount'] = float(data.get('amount', df.at[tx_id, 'amount']))
-                    df.at[tx_id, 'type'] = data.get('type', df.at[tx_id, 'type'])
-                    df.at[tx_id, 'date'] = data.get('date', df.at[tx_id, 'date'])
-                    
-                    df.to_csv(WALLET_FILE, index=False)
-                    clear_user_cache()
-                    return jsonify({"status": "success"})
-                else:
-                    return jsonify({"error": "Transaction not found"}), 404
+                db.execute('UPDATE wallet SET amount = ?, type = ?, date = ? WHERE id = ?', 
+                           (amount, tx_type, date_val, tx_id))
+                db.commit()
+                
+                clear_user_cache()
+                return jsonify({"status": "success"})
+            else:
+                return jsonify({"error": "Transaction not found"}), 404
         except Exception as e:
             app.logger.error(f"Wallet Put Error: {e}", exc_info=True)
             return jsonify({'error': str(e)}), 500
@@ -845,66 +977,56 @@ def handle_wallet():
     if request.method == 'DELETE':
         try:
             tx_id = int(request.args.get('id'))
-            if os.path.exists(WALLET_FILE):
-                df = pd.read_csv(WALLET_FILE)
-                # Header kontrolü
-                if 'amount' not in df.columns:
-                    df = pd.read_csv(WALLET_FILE, header=None, names=['date', 'type', 'amount'])
+            
+            # Önce kaydı bul (Sync için)
+            cur = db.execute("SELECT * FROM wallet WHERE id = ? AND user_id = ?", (tx_id, user_id))
+            row = cur.fetchone()
+            
+            if row:
+                # --- SENKRONIZASYON ---
+                try:
+                    w_type = row['type']
+                    w_date = row['date']
+                    w_amount = float(row['amount'])
+                    
+                    if w_type in ['STOCK_BUY', 'STOCK_SELL']:
+                        target_tx_type = 'BUY' if w_type == 'STOCK_BUY' else 'SELL'
+                        
+                        # Eşleşen portföy işlemini bul ve sil
+                        # BUY: Cost + Comm = Amount
+                        # SELL: Cost - Comm = Amount
+                        # SQLite'da hesaplama yaparak eşleşme arıyoruz
+                        if target_tx_type == 'BUY':
+                            db.execute('''
+                                DELETE FROM transactions 
+                                WHERE id IN (
+                                    SELECT id FROM transactions 
+                                    WHERE user_id = ? AND date = ? AND type = 'BUY' 
+                                    AND ABS((total_cost + total_commission) - ?) < 0.01
+                                    LIMIT 1
+                                )
+                            ''', (user_id, w_date, w_amount))
+                        else:
+                            db.execute('''
+                                DELETE FROM transactions 
+                                WHERE id IN (
+                                    SELECT id FROM transactions 
+                                    WHERE user_id = ? AND date = ? AND type = 'SELL' 
+                                    AND ABS((total_cost - total_commission) - ?) < 0.01
+                                    LIMIT 1
+                                )
+                            ''', (user_id, w_date, w_amount))
+                except Exception as sync_err:
+                    print(f"Sync error: {sync_err}")
                 
-                if tx_id in df.index:
-                    # --- SENKRONIZASYON BASLANGIC ---
-                    # Cüzdandan silinen kayıt bir hisse işlemiyse (STOCK_BUY/STOCK_SELL),
-                    # portföyden de ilgili hisse işlemini bulup silelim.
-                    try:
-                        deleted_row = df.loc[tx_id]
-                        w_type = deleted_row['type']
-                        w_date = deleted_row['date']
-                        w_amount = float(deleted_row['amount'])
-
-                        if w_type in ['STOCK_BUY', 'STOCK_SELL'] and os.path.exists(TRANSACTIONS_FILE):
-                            df_tx = pd.read_csv(TRANSACTIONS_FILE)
-                            # Header check for transactions
-                            if not df_tx.empty and 'symbol' not in df_tx.columns and len(df_tx.columns) == 7:
-                                df_tx = pd.read_csv(TRANSACTIONS_FILE, header=None, names=['symbol', 'quantity', 'price', 'totalCost', 'totalCommission', 'date', 'type'])
-                            
-                            if not df_tx.empty:
-                                # Hedef işlem tipi (Cüzdanda STOCK_BUY ise Portföyde BUY'dır)
-                                target_tx_type = 'BUY' if w_type == 'STOCK_BUY' else 'SELL'
-                                
-                                # Eşleşme bulma (Tarih ve Tutar üzerinden)
-                                # BUY ise: Cost + Comm = Wallet Amount
-                                # SELL ise: Cost - Comm = Wallet Amount
-                                tolerance = 0.01
-                                match_idx = None
-                                
-                                for idx, row in df_tx.iterrows():
-                                    if row['type'] != target_tx_type: continue
-                                    if row['date'] != w_date: continue
-                                    
-                                    cost = float(row['totalCost'])
-                                    comm = float(row['totalCommission'])
-                                    calc_amt = (cost + comm) if target_tx_type == 'BUY' else max(0, cost - comm)
-                                    
-                                    if abs(calc_amt - w_amount) < tolerance:
-                                        match_idx = idx
-                                        break
-                                
-                                if match_idx is not None:
-                                    df_tx = df_tx.drop(match_idx)
-                                    has_header = 'symbol' in df_tx.columns
-                                    df_tx.to_csv(TRANSACTIONS_FILE, index=False, header=has_header)
-                                    print(f"[SYNC] Cüzdan kaydı {tx_id} silindiği için işlem {match_idx} de silindi.")
-                    except Exception as sync_err:
-                        print(f"Sync error: {sync_err}")
-                    # --- SENKRONIZASYON BITIS ---
-
-                    df = df.drop(tx_id)
-                    # Kaydederken header durumunu koru veya varsayılan olarak ekle
-                    df.to_csv(WALLET_FILE, index=False)
-                    clear_user_cache() # Veri değişti
-                    return jsonify({"status": "success"})
-                else:
-                    return jsonify({"error": "Transaction not found"}), 404
+                # Cüzdan kaydını sil
+                db.execute("DELETE FROM wallet WHERE id = ?", (tx_id,))
+                db.commit()
+                
+                clear_user_cache()
+                return jsonify({"status": "success"})
+            else:
+                return jsonify({"error": "Transaction not found"}), 404
         except Exception as e:
             app.logger.error(f"Wallet Delete Error: {e}", exc_info=True)
             return jsonify({'error': str(e)}), 500
@@ -912,26 +1034,45 @@ def handle_wallet():
 # Hedef Yönetimi (Target)
 @app.route('/api/targets', methods=['GET', 'POST', 'DELETE'])
 def handle_targets():
+    user_id = get_current_user_id()
+    db = get_db()
+
     if request.method == 'GET':
         # Cache Kontrolü
-        cached = get_from_cache('user_targets')
+        cached = get_from_cache(f'user_{user_id}_targets')
         if cached: return jsonify(cached)
 
-        if os.path.exists(TARGETS_FILE):
-            try:
-                with open(TARGETS_FILE, 'r') as f:
-                    data = json.load(f)
-                    save_to_cache('user_targets', data)
-                    return jsonify(data)
-            except:
-                return jsonify({})
-        return jsonify({})
+        cur = db.execute("SELECT * FROM targets WHERE user_id = ?", (user_id,))
+        row = cur.fetchone()
+        if row:
+            data = dict(row)
+            save_to_cache(f'user_{user_id}_targets', data)
+            return jsonify(data)
+        return jsonify({}) # Boş obje dön
     
     if request.method == 'POST':
         try:
             data = request.json
-            with open(TARGETS_FILE, 'w') as f:
-                json.dump(data, f)
+            
+            # Önce var mı kontrol et
+            cur = db.execute("SELECT id FROM targets WHERE user_id = ?", (user_id,))
+            existing = cur.fetchone()
+            
+            if existing:
+                db.execute('''
+                    UPDATE targets 
+                    SET startingAmount=?, startDate=?, years=?, returnRate=?, monthlyContribution=?
+                    WHERE user_id=?
+                ''', (data.get('startingAmount'), data.get('startDate'), data.get('years'), 
+                      data.get('returnRate'), data.get('monthlyContribution'), user_id))
+            else:
+                db.execute('''
+                    INSERT INTO targets (user_id, startingAmount, startDate, years, returnRate, monthlyContribution)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (user_id, data.get('startingAmount'), data.get('startDate'), data.get('years'), 
+                      data.get('returnRate'), data.get('monthlyContribution')))
+            
+            db.commit()
             clear_user_cache() # Veri değişti
             return jsonify({"status": "success"})
         except Exception as e:
@@ -940,8 +1081,8 @@ def handle_targets():
             
     if request.method == 'DELETE':
         try:
-            if os.path.exists(TARGETS_FILE):
-                os.remove(TARGETS_FILE)
+            db.execute("DELETE FROM targets WHERE user_id = ?", (user_id,))
+            db.commit()
             clear_user_cache() # Veri değişti
             return jsonify({"status": "success"})
         except Exception as e:
@@ -951,55 +1092,55 @@ def handle_targets():
 # Verileri Sıfırla (Tüm verileri sil)
 @app.route('/api/reset', methods=['POST'])
 def reset_all_data():
+    user_id = get_current_user_id()
+    db = get_db()
     try:
-        if os.path.exists(TRANSACTIONS_FILE):
-            os.remove(TRANSACTIONS_FILE)
+        print(f"--- SIFIRLAMA İŞLEMİ BAŞLADI (User ID: {user_id}) ---")
         
-        if os.path.exists(WALLET_FILE):
-            os.remove(WALLET_FILE)
-            
-        if os.path.exists(TARGETS_FILE):
-            os.remove(TARGETS_FILE)
-            
+        cur = db.execute("DELETE FROM transactions WHERE user_id = ?", (user_id,))
+        print(f"-> Silinen İşlem Sayısı: {cur.rowcount}")
+        
+        cur = db.execute("DELETE FROM wallet WHERE user_id = ?", (user_id,))
+        print(f"-> Silinen Cüzdan Kaydı: {cur.rowcount}")
+        
+        cur = db.execute("DELETE FROM targets WHERE user_id = ?", (user_id,))
+        print(f"-> Silinen Hedef: {cur.rowcount}")
+        
+        db.commit()
+        print("--- SIFIRLAMA TAMAMLANDI ---")
+        
         clear_user_cache()
         return jsonify({"status": "success"})
     except Exception as e:
         app.logger.error(f"Reset Error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
-# Portföy Tarihçesi (Grafik İçin)
-@app.route('/api/portfolio/history', methods=['GET'])
-def get_portfolio_history():
-    # Cache Kontrolü (En önemli kısım burası, çok işlem yapıyor)
-    cached = get_from_cache('user_portfolio_history')
-    if cached: return jsonify(cached)
-
+# --- PORTFÖY HESAPLAMA MOTORU (Ortak Fonksiyon) ---
+def calculate_portfolio_history(user_id, db):
+    """Verilen kullanıcının portföy tarihçesini hesaplar."""
+    
     try:
-        # Veri dosyaları yoksa boş dön
-        if not os.path.exists(WALLET_FILE) and not os.path.exists(TRANSACTIONS_FILE):
-            return jsonify([])
+        # Verileri SQL'den çek
+        df_wallet = pd.read_sql_query("SELECT * FROM wallet WHERE user_id = ?", db, params=(user_id,))
+        df_tx = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = ?", db, params=(user_id,))
+
+        if df_wallet.empty and df_tx.empty:
+             return []
 
         # Tarih aralığını belirle (İnterval seçimi için)
         min_date = datetime.datetime.now()
-        if os.path.exists(TRANSACTIONS_FILE) and os.path.getsize(TRANSACTIONS_FILE) > 0:
-             df_temp = pd.read_csv(TRANSACTIONS_FILE)
-             if 'date' in df_temp.columns:
-                 min_date = pd.to_datetime(df_temp['date']).min()
+        if not df_tx.empty and 'date' in df_tx.columns:
+             min_date = pd.to_datetime(df_tx['date']).min()
         
         # Eğer geçmiş 90 günden kısaysa Saatlik (1h), uzunsa Günlük (1d) veri kullan
         # Bu sayede 1 haftalık grafikte sadece nokta değil, detaylı çizgi görünür.
         interval = '1h' if (datetime.datetime.now() - min_date).days < 90 else '1d'
-        freq = 'H' if interval == '1h' else 'D'
+        freq = 'h' if interval == '1h' else 'D'
 
         # --- 1. Nakit Geçmişi (Cash History) ---
         cash_series = pd.Series(dtype=float)
-        df_wallet = pd.DataFrame()
-        if os.path.exists(WALLET_FILE) and os.path.getsize(WALLET_FILE) > 0:
+        if not df_wallet.empty:
             try:
-                df_wallet = pd.read_csv(WALLET_FILE)
-                if 'amount' not in df_wallet.columns:
-                    df_wallet = pd.read_csv(WALLET_FILE, header=None, names=['date', 'type', 'amount'])
-                
                 df_wallet['date'] = pd.to_datetime(df_wallet['date'])
                 if interval == '1d':
                     df_wallet['date'] = df_wallet['date'].dt.normalize()
@@ -1017,95 +1158,93 @@ def get_portfolio_history():
         # --- 2. Hisse Değeri Geçmişi (Stock Value History) ---
         stock_value_series = pd.Series(dtype=float)
         net_stock_spend_series = pd.Series(dtype=float)
-        if os.path.exists(TRANSACTIONS_FILE) and os.path.getsize(TRANSACTIONS_FILE) > 0:
+        if not df_tx.empty:
             try:
-                df_tx = pd.read_csv(TRANSACTIONS_FILE)
-                if 'symbol' not in df_tx.columns and len(df_tx.columns) == 7:
-                    df_tx = pd.read_csv(TRANSACTIONS_FILE, header=None, names=['symbol', 'quantity', 'price', 'totalCost', 'totalCommission', 'date', 'type'])
-                
-                if not df_tx.empty:
-                    df_tx['date'] = pd.to_datetime(df_tx['date'])
-                    if interval == '1d':
-                        df_tx['date'] = df_tx['date'].dt.normalize()
-                    else:
-                        df_tx['date'] = df_tx['date'].dt.floor('h')
+                # Sütun isimlerini düzelt (total_cost -> totalCost)
+                df_tx.rename(columns={'total_cost': 'totalCost', 'total_commission': 'totalCommission'}, inplace=True)
 
-                    symbols = df_tx['symbol'].unique().tolist()
+                df_tx['date'] = pd.to_datetime(df_tx['date'])
+                if interval == '1d':
+                    df_tx['date'] = df_tx['date'].dt.normalize()
+                else:
+                    df_tx['date'] = df_tx['date'].dt.floor('h')
+
+                symbols = df_tx['symbol'].unique().tolist()
+                
+                if symbols:
+                    min_date = df_tx['date'].min()
+                    # Yfinance için tarih formatı
+                    start_str = min_date.strftime('%Y-%m-%d')
                     
-                    if symbols:
-                        min_date = df_tx['date'].min()
-                        # Yfinance için tarih formatı
-                        start_str = min_date.strftime('%Y-%m-%d')
+                    # Geçmiş fiyatları çek
+                    stock_data = yf.download(symbols, start=start_str, interval=interval, progress=False, auto_adjust=True)['Close']
+                    
+                    # Tek hisse varsa Series gelir, DataFrame'e çevir
+                    if isinstance(stock_data, pd.Series):
+                        stock_data = stock_data.to_frame(name=symbols[0])
+                    
+                    # Timezone kaldır ve indexi hizala
+                    if stock_data.index.tz is not None:
+                        stock_data.index = stock_data.index.tz_convert(None)
+                    
+                    if interval == '1d':
+                        stock_data.index = stock_data.index.normalize()
+                    else:
+                        stock_data.index = stock_data.index.floor('h')
+                    
+                    # Günlük hisse adetlerini hesapla
+                    df_tx['signed_qty'] = df_tx.apply(lambda x: x['quantity'] if x['type'] == 'BUY' else -x['quantity'], axis=1)
+                    daily_qty_change = df_tx.groupby(['date', 'symbol'])['signed_qty'].sum().unstack(fill_value=0)
+                    
+                    # Tüm tarih aralığını oluştur
+                    full_idx = pd.date_range(start=min_date, end=datetime.datetime.now(), freq=freq)
+                    if interval == '1d':
+                        full_idx = full_idx.normalize()
+                    else:
+                        full_idx = full_idx.floor('h')
+                    
+                    # Adetleri kümülatif topla (Holdings over time)
+                    holdings_over_time = daily_qty_change.reindex(full_idx, fill_value=0).cumsum()
+                    
+                    # Fiyatları hizala
+                    prices_full = stock_data.reindex(full_idx)
+                    
+                    # İyileştirilmiş Fiyat Tamamlama:
+                    # yfinance verisi eksikse (NaN), işlem geçmişindeki fiyatları kullan.
+                    for sym in symbols:
+                        if sym not in prices_full.columns:
+                            prices_full[sym] = None # Sütun yoksa oluştur
                         
-                        # Geçmiş fiyatları çek
-                        stock_data = yf.download(symbols, start=start_str, interval=interval, progress=False, auto_adjust=True)['Close']
+                        # Bu hisse için işlem geçmişini al
+                        sym_txs = df_tx[df_tx['symbol'] == sym].sort_values('date')
                         
-                        # Tek hisse varsa Series gelir, DataFrame'e çevir
-                        if isinstance(stock_data, pd.Series):
-                            stock_data = stock_data.to_frame(name=symbols[0])
-                        
-                        # Timezone kaldır ve indexi hizala
-                        if stock_data.index.tz is not None:
-                            stock_data.index = stock_data.index.tz_convert(None)
-                        
-                        if interval == '1d':
-                            stock_data.index = stock_data.index.normalize()
-                        else:
-                            stock_data.index = stock_data.index.floor('h')
-                        
-                        # Günlük hisse adetlerini hesapla
-                        df_tx['signed_qty'] = df_tx.apply(lambda x: x['quantity'] if x['type'] == 'BUY' else -x['quantity'], axis=1)
-                        daily_qty_change = df_tx.groupby(['date', 'symbol'])['signed_qty'].sum().unstack(fill_value=0)
-                        
-                        # Tüm tarih aralığını oluştur
-                        full_idx = pd.date_range(start=min_date, end=datetime.datetime.now(), freq=freq)
-                        if interval == '1d':
-                            full_idx = full_idx.normalize()
-                        else:
-                            full_idx = full_idx.floor('h')
-                        
-                        # Adetleri kümülatif topla (Holdings over time)
-                        holdings_over_time = daily_qty_change.reindex(full_idx, fill_value=0).cumsum()
-                        
-                        # Fiyatları hizala
-                        prices_full = stock_data.reindex(full_idx)
-                        
-                        # İyileştirilmiş Fiyat Tamamlama:
-                        # yfinance verisi eksikse (NaN), işlem geçmişindeki fiyatları kullan.
-                        for sym in symbols:
-                            if sym not in prices_full.columns:
-                                prices_full[sym] = None # Sütun yoksa oluştur
+                        if not sym_txs.empty:
+                            # İşlem günleri için işlem fiyatlarını al
+                            tx_prices = sym_txs.groupby('date')['price'].last()
+                            tx_prices_reindexed = tx_prices.reindex(full_idx)
                             
-                            # Bu hisse için işlem geçmişini al
-                            sym_txs = df_tx[df_tx['symbol'] == sym].sort_values('date')
+                            # 1. Piyasa verisi olmayan günleri işlem fiyatıyla doldur
+                            prices_full[sym] = prices_full[sym].fillna(tx_prices_reindexed)
                             
-                            if not sym_txs.empty:
-                                # İşlem günleri için işlem fiyatlarını al
-                                tx_prices = sym_txs.groupby('date')['price'].last()
-                                tx_prices_reindexed = tx_prices.reindex(full_idx)
-                                
-                                # 1. Piyasa verisi olmayan günleri işlem fiyatıyla doldur
-                                prices_full[sym] = prices_full[sym].fillna(tx_prices_reindexed)
-                                
-                                # 2. Hala boşluk varsa önceki günün fiyatını taşı (ffill)
-                                prices_full[sym] = prices_full[sym].ffill()
-                                
-                                # 3. En baştaki boşluklar için (ilk işlem öncesi) ilk işlem fiyatını kullan
-                                first_price = sym_txs.iloc[0]['price']
-                                prices_full[sym] = prices_full[sym].fillna(first_price)
-                        
-                        prices_full = prices_full.fillna(0)
-                        
-                        # Günlük Toplam Hisse Değeri = Adet * Fiyat
-                        market_values = holdings_over_time * prices_full
-                        stock_value_series = market_values.sum(axis=1)
-                        
-                        # Hisse Harcamaları (Nakit Akışı Etkisi)
-                        # BUY: Para çıktı (+Spend), SELL: Para girdi (-Spend)
-                        df_tx['trade_cash_flow'] = df_tx.apply(
-                            lambda x: (x['totalCost'] + x['totalCommission']) if x['type'] == 'BUY' else -(x['totalCost'] - x['totalCommission']), axis=1
-                        )
-                        net_stock_spend_series = df_tx.groupby('date')['trade_cash_flow'].sum()
+                            # 2. Hala boşluk varsa önceki günün fiyatını taşı (ffill)
+                            prices_full[sym] = prices_full[sym].ffill()
+                            
+                            # 3. En baştaki boşluklar için (ilk işlem öncesi) ilk işlem fiyatını kullan
+                            first_price = sym_txs.iloc[0]['price']
+                            prices_full[sym] = prices_full[sym].fillna(first_price)
+                    
+                    prices_full = prices_full.fillna(0)
+                    
+                    # Günlük Toplam Hisse Değeri = Adet * Fiyat
+                    market_values = holdings_over_time * prices_full
+                    stock_value_series = market_values.sum(axis=1)
+                    
+                    # Hisse Harcamaları (Nakit Akışı Etkisi)
+                    # BUY: Para çıktı (+Spend), SELL: Para girdi (-Spend)
+                    df_tx['trade_cash_flow'] = df_tx.apply(
+                        lambda x: (x['totalCost'] + x['totalCommission']) if x['type'] == 'BUY' else -(x['totalCost'] - x['totalCommission']), axis=1
+                    )
+                    net_stock_spend_series = df_tx.groupby('date')['trade_cash_flow'].sum()
             except Exception as e:
                 print(f"Stock history error: {e}")
 
@@ -1117,7 +1256,7 @@ def get_portfolio_history():
         all_dates = all_dates[all_dates <= datetime.datetime.now()]
         
         if all_dates.empty:
-            return jsonify([])
+            return []
             
         # Nakit bakiyesini kümülatif hesapla (Akışların toplamı)
         cash_flow_aligned = cash_series.reindex(all_dates, fill_value=0)
@@ -1143,12 +1282,109 @@ def get_portfolio_history():
                 'invested': float(invested_capital.loc[date])
             })
             
-        save_to_cache('user_portfolio_history', result)
-        return jsonify(result)
+        return result
 
     except Exception as e:
-        app.logger.error(f"Portfolio History Error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        print(f"Portfolio Calculation Error (User {user_id}): {e}")
+        return []
+
+# Portföy Tarihçesi (Grafik İçin - Kendi Portföyüm)
+@app.route('/api/portfolio/history', methods=['GET'])
+def get_portfolio_history():
+    user_id = get_current_user_id()
+    db = get_db()
+
+    # Cache Kontrolü
+    cached = get_from_cache(f'user_{user_id}_portfolio_history')
+    if cached: return jsonify(cached)
+
+    result = calculate_portfolio_history(user_id, db)
+    
+    if result:
+        save_to_cache(f'user_{user_id}_portfolio_history', result)
+    
+    return jsonify(result)
+
+# --- SOSYAL ÖZELLİKLER ---
+
+# Arkadaş Arama
+@app.route('/api/users/search', methods=['GET'])
+def search_users():
+    query = request.args.get('q', '')
+    if not query or len(query) < 2:
+        return jsonify([])
+    
+    db = get_db()
+    user_id = get_current_user_id()
+    
+    # Kendisi hariç, aranan kelimeyi içeren kullanıcıları bul
+    cur = db.execute("SELECT id, username FROM users WHERE username LIKE ? AND id != ? LIMIT 5", (f'%{query}%', user_id))
+    results = [dict(row) for row in cur.fetchall()]
+    return jsonify(results)
+
+# Arkadaş Yönetimi (Listele, Ekle, Sil)
+@app.route('/api/friends', methods=['GET', 'POST', 'DELETE'])
+def handle_friends():
+    user_id = get_current_user_id()
+    db = get_db()
+    
+    if request.method == 'GET':
+        # Arkadaş listesini getir
+        cur = db.execute('''
+            SELECT u.id, u.username 
+            FROM friendships f
+            JOIN users u ON f.friend_id = u.id
+            WHERE f.user_id = ?
+        ''', (user_id,))
+        friends = [dict(row) for row in cur.fetchall()]
+        return jsonify(friends)
+        
+    if request.method == 'POST':
+        # Arkadaş ekle
+        data = request.json
+        friend_id = data.get('friend_id')
+        
+        if not friend_id:
+            return jsonify({'error': 'Friend ID required'}), 400
+            
+        try:
+            db.execute('INSERT INTO friendships (user_id, friend_id) VALUES (?, ?)', (user_id, friend_id))
+            db.commit()
+            return jsonify({'status': 'success'})
+        except sqlite3.IntegrityError:
+            return jsonify({'error': 'Already friends'}), 409
+
+    if request.method == 'DELETE':
+        # Arkadaş sil
+        friend_id = request.args.get('id')
+        db.execute('DELETE FROM friendships WHERE user_id = ? AND friend_id = ?', (user_id, friend_id))
+        db.commit()
+        return jsonify({'status': 'success'})
+
+# Arkadaş Portföyü (Kıyaslama İçin)
+@app.route('/api/friends/portfolio/<int:friend_id>', methods=['GET'])
+def get_friend_portfolio_history(friend_id):
+    user_id = get_current_user_id()
+    db = get_db()
+    
+    # Arkadaşlık kontrolü (Sadece arkadaşınsa veriyi çek)
+    check = db.execute('SELECT 1 FROM friendships WHERE user_id = ? AND friend_id = ?', (user_id, friend_id)).fetchone()
+    if not check:
+        return jsonify({'error': 'Not friends'}), 403
+        
+    # Arkadaşın verisini hesapla (Cache kullanmadan anlık hesapla veya ayrı cache kullan)
+    # Arkadaşın verisi için de cache kullanabiliriz:
+    cache_key = f'user_{friend_id}_portfolio_history'
+    cached = get_from_cache(cache_key)
+    if cached: return jsonify(cached)
+    
+    result = calculate_portfolio_history(friend_id, db)
+    
+    # Arkadaşın verisini de cache'e atalım (Performans için)
+    if result:
+        save_to_cache(cache_key, result)
+        
+    return jsonify(result)
 
 # Akıllı Arama (Şirket İsminden Sembol Bulma)
 @app.route('/api/search', methods=['GET'])
@@ -1206,6 +1442,9 @@ def not_found(e):
 
 if __name__ == '__main__':
     # Eğer .exe ise tarayıcıyı otomatik aç
+    # Veritabanını başlat
+    init_db()
+    
     try:
         if getattr(sys, 'frozen', False):
             # Monitor thread'i baslat (Arka planda calisip kapanmayi kontrol eder)

@@ -19,7 +19,12 @@ export default function SettingsView() {
 
   const handleReset = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/reset', { method: 'POST' });
+      const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+      const headers = { 
+        'Content-Type': 'application/json',
+        'X-User-ID': String(user.id || '1') 
+      };
+      const res = await fetch('http://localhost:5000/api/reset', { method: 'POST', headers });
       if (res.ok) {
         // Tarayici onbellegini de temizle
         localStorage.removeItem('portfolio_view_cache');

@@ -21,6 +21,8 @@ import PortfolioView from './pages/Portfolio/PortfolioView';
 import HistoryView from './pages/dashboard/HistoryView';
 import SettingsView from './pages/dashboard/SettingsView';
 import TargetView from './pages/target/TargetView';
+import LoginView from './pages/auth/LoginView';
+import RegisterView from './pages/auth/RegisterView';
 
 const darkTheme = createTheme({
   palette: {
@@ -289,6 +291,16 @@ function MainLayout() {
 }
 
 function App() {
+  const [user, setUser] = useState<any>(() => {
+    const saved = localStorage.getItem('borsa_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const handleLogin = (userData: any) => {
+    setUser(userData);
+    localStorage.setItem('borsa_user', JSON.stringify(userData));
+  };
+
   // Heartbeat: Uygulama acik oldugu surece backend'e "ben buradayim" sinyali gonder
   useEffect(() => {
     const interval = setInterval(() => {
@@ -306,16 +318,24 @@ function App() {
       <CssBaseline />
       <StocksProvider>
         <Routes>
-          <Route path="/" element={<MainLayout />}>
-            <Route index element={<DashboardView />} />
-            <Route path="watchlist" element={<WatchlistView />} />
-            <Route path="portfolio" element={<PortfolioView />} />
-            <Route path="comparison" element={<ComparisonView />} />
-            <Route path="target" element={<TargetView />} />
-            <Route path="history" element={<HistoryView />} />
-            <Route path="settings" element={<SettingsView />} />
-            <Route path="market/:symbol" element={<StockDetailView />} />
-          </Route>
+          <Route path="/login" element={<LoginView onLogin={handleLogin} />} />
+          <Route path="/register" element={<RegisterView />} />
+          
+          {/* Korumalı Rotalar: Sadece user varsa göster */}
+          {user ? (
+            <Route path="/" element={<MainLayout />}>
+              <Route index element={<DashboardView />} />
+              <Route path="watchlist" element={<WatchlistView />} />
+              <Route path="portfolio" element={<PortfolioView />} />
+              <Route path="comparison" element={<ComparisonView />} />
+              <Route path="target" element={<TargetView />} />
+              <Route path="history" element={<HistoryView />} />
+              <Route path="settings" element={<SettingsView />} />
+              <Route path="market/:symbol" element={<StockDetailView />} />
+            </Route>
+          ) : (
+            <Route path="*" element={<LoginView onLogin={handleLogin} />} />
+          )}
         </Routes>
       </StocksProvider>
     </ThemeProvider>

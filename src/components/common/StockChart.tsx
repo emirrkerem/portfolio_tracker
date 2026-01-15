@@ -164,7 +164,9 @@ export default function StockChart({ symbol, height = '320px', onPriceUpdate }: 
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/transactions');
+        const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+        const headers = { 'X-User-ID': user.id || '1' };
+        const res = await fetch('http://localhost:5000/api/transactions', { headers });
         const data = await res.json();
         if (Array.isArray(data)) {
           setTransactions(data.filter((t: any) => t.symbol === symbol));
