@@ -3,6 +3,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
+import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -14,6 +15,7 @@ import { API_URL } from '../../config';
 
 export default function SettingsView() {
   const [openReset, setOpenReset] = useState(false);
+  const [openDeleteAccount, setOpenDeleteAccount] = useState(false);
   const [openWatchlist, setOpenWatchlist] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [error, setError] = useState('');
@@ -43,6 +45,26 @@ export default function SettingsView() {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+      const headers = { 
+        'Content-Type': 'application/json',
+        'X-User-ID': String(user.id || '1') 
+      };
+      const res = await fetch(`${API_URL}/api/user`, { method: 'DELETE', headers });
+      if (res.ok) {
+        // Her şeyi temizle ve çıkış yap
+        localStorage.clear();
+        window.location.href = '/login';
+      } else {
+        setError('Hesap silme başarısız oldu.');
+      }
+    } catch (err) {
+      setError('Sunucu hatası.');
+    }
+  };
+
   const handleClearWatchlist = () => {
     localStorage.removeItem('borsa_watchlist');
     window.dispatchEvent(new Event('watchlist-updated'));
@@ -64,14 +86,24 @@ export default function SettingsView() {
           Bu işlem, portföyünüzdeki tüm hisse senedi işlemlerini, cüzdan geçmişini (para giriş/çıkış) ve hedeflerinizi kalıcı olarak silecektir. Bu işlem geri alınamaz.
         </Typography>
         
-        <Button 
-          variant="contained" 
-          color="error" 
-          onClick={() => setOpenReset(true)}
-          startIcon={<DeleteForeverIcon />}
-        >
-          Bütün Verileri Sil
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <Button 
+            variant="contained" 
+            color="error" 
+            onClick={() => setOpenReset(true)}
+            startIcon={<DeleteForeverIcon />}
+          >
+            Bütün Verileri Sil
+          </Button>
+          <Button 
+            variant="outlined" 
+            color="error" 
+            onClick={() => setOpenDeleteAccount(true)}
+            startIcon={<PersonRemoveIcon />}
+          >
+            Hesabı Sil
+          </Button>
+        </Box>
       </Box>
 
       {/* İzleme Listesi Ayarları */}
@@ -121,6 +153,26 @@ export default function SettingsView() {
           <Button onClick={() => setOpenReset(false)} sx={{ color: 'white' }}>İptal</Button>
           <Button onClick={handleReset} color="error" variant="contained" autoFocus>
             Evet, Sil
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Account Dialog */}
+      <Dialog
+        open={openDeleteAccount}
+        onClose={() => setOpenDeleteAccount(false)}
+        PaperProps={{ sx: { bgcolor: '#1a1a1a', color: 'white', border: '1px solid rgba(255,255,255,0.1)' } }}
+      >
+        <DialogTitle sx={{ color: '#FF3B30' }}>Hesabı Sil</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: '#a0a0a0' }}>
+            Hesabınız ve tüm verileriniz kalıcı olarak silinecektir. Bu işlem geri alınamaz. Onaylıyor musunuz?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDeleteAccount(false)} sx={{ color: 'white' }}>İptal</Button>
+          <Button onClick={handleDeleteAccount} color="error" variant="contained" autoFocus>
+            Evet, Hesabımı Sil
           </Button>
         </DialogActions>
       </Dialog>

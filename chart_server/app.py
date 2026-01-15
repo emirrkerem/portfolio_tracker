@@ -1178,6 +1178,33 @@ def reset_all_data():
         app.logger.error(f"Reset Error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
+# Hesabı Sil (Kullanıcıyı ve verilerini sil)
+@app.route('/api/user', methods=['DELETE'])
+def delete_user_account():
+    user_id = get_current_user_id()
+    db = get_db()
+    try:
+        print(f"--- HESAP SILME ISLEMI BASLADI (User ID: {user_id}) ---")
+        
+        # İlişkili verileri sil
+        db.execute("DELETE FROM transactions WHERE user_id = ?", (user_id,))
+        db.execute("DELETE FROM wallet WHERE user_id = ?", (user_id,))
+        db.execute("DELETE FROM targets WHERE user_id = ?", (user_id,))
+        
+        # Arkadaşlıkları sil
+        db.execute("DELETE FROM friendships WHERE user_id = ? OR friend_id = ?", (user_id, user_id))
+        db.execute("DELETE FROM friend_requests WHERE sender_id = ? OR receiver_id = ?", (user_id, user_id))
+        
+        # Kullanıcıyı sil
+        db.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        
+        db.commit()
+        clear_user_cache()
+        return jsonify({"status": "success"})
+    except Exception as e:
+        app.logger.error(f"Account Delete Error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
 # --- VERITABANI BAKIM (Sequence Fix) ---
 @app.route('/api/fix-db', methods=['GET'])
 def fix_db_sequences():
