@@ -1191,6 +1191,19 @@ def serve():
     else:
         return "React build klasörü (dist) bulunamadı. Lütfen 'npm run build' çalıştırın."
 
+# --- SPA ROUTING FIX (SAYFA YENILEME SORUNU ICIN) ---
+@app.errorhandler(404)
+def not_found(e):
+    # Eger istek API veya statik dosya degilse, index.html dondur (React Router halleder)
+    # Bu sayede /market/AAPL gibi sayfalarda F5 yapinca 404 hatasi almazsiniz.
+    if request.path.startswith('/api/') or request.path.startswith('/logos/'):
+        return jsonify({'error': 'Not found'}), 404
+    
+    if os.path.exists(app.static_folder):
+        return send_from_directory(app.static_folder, 'index.html')
+    
+    return "404 Not Found", 404
+
 if __name__ == '__main__':
     # Eğer .exe ise tarayıcıyı otomatik aç
     try:
