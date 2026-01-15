@@ -266,7 +266,7 @@ export default function WatchlistView() {
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                       <Avatar 
-                        src={`/logos/${row.symbol}.png`} 
+                        src={`${API_URL}/logos/${row.symbol}.png`} 
                         sx={{ width: 32, height: 32, bgcolor: 'rgba(255,255,255,0.1)', fontSize: '0.8rem' }}
                       >
                         {row.symbol.substring(0, 2)}

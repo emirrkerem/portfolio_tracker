@@ -348,7 +348,7 @@ export default function PortfolioView() {
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                           <Avatar 
-                            src={`/logos/${item.symbol}.png`} 
+                            src={`${API_URL}/logos/${item.symbol}.png`} 
                             sx={{ width: 32, height: 32, bgcolor: 'rgba(255,255,255,0.1)', fontSize: '0.8rem' }}
                           >
                             {item.symbol.substring(0, 2)}
@@ -480,7 +480,7 @@ export default function PortfolioView() {
                   </Typography>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Avatar src={`/logos/${bestPerformer.symbol}.png`} sx={{ width: 24, height: 24, fontSize: '0.7rem', bgcolor: 'rgba(255,255,255,0.1)' }}>{bestPerformer.symbol[0]}</Avatar>
+                      <Avatar src={`${API_URL}/logos/${bestPerformer.symbol}.png`} sx={{ width: 24, height: 24, fontSize: '0.7rem', bgcolor: 'rgba(255,255,255,0.1)' }}>{bestPerformer.symbol[0]}</Avatar>
                       <Typography fontWeight="bold">{bestPerformer.symbol}</Typography>
                     </Box>
                     <Typography fontWeight="bold" sx={{ color: '#00e676' }}>
@@ -497,7 +497,7 @@ export default function PortfolioView() {
                   </Typography>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Avatar src={`/logos/${worstPerformer.symbol}.png`} sx={{ width: 24, height: 24, fontSize: '0.7rem', bgcolor: 'rgba(255,255,255,0.1)' }}>{worstPerformer.symbol[0]}</Avatar>
+                      <Avatar src={`${API_URL}/logos/${worstPerformer.symbol}.png`} sx={{ width: 24, height: 24, fontSize: '0.7rem', bgcolor: 'rgba(255,255,255,0.1)' }}>{worstPerformer.symbol[0]}</Avatar>
                       <Typography fontWeight="bold">{worstPerformer.symbol}</Typography>
                     </Box>
                     <Typography fontWeight="bold" sx={{ color: '#ff1744' }}>

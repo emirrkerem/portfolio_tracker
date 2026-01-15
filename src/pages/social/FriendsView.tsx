@@ -408,7 +408,7 @@ export default function FriendsView() {
                             {friendHoldings.map((h) => (
                                 <TableRow key={h.symbol} hover sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } }}>
                                     <TableCell sx={{ color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 2 }}>
-                                        <Avatar src={`/logos/${h.symbol}.png`} sx={{ width: 24, height: 24, fontSize: '0.7rem' }}>{h.symbol[0]}</Avatar>
+                                        <Avatar src={`${API_URL}/logos/${h.symbol}.png`} sx={{ width: 24, height: 24, fontSize: '0.7rem' }}>{h.symbol[0]}</Avatar>
                                         {h.symbol}
                                     </TableCell>
                                     <TableCell align="right">

@@ -383,7 +383,7 @@ export default function StockDetailView() {
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
           <Avatar 
-            src={`/logos/${symbol}.png`} 
+            src={`${API_URL}/logos/${symbol}.png`} 
             alt={symbol}
             sx={{ 
               width: 72, 
