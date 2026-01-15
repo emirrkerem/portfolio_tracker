@@ -1117,7 +1117,7 @@ export default function DashboardView() {
                 >
                   <ListItemAvatar>
                     <Avatar 
-                      src={`${API_URL}/logos/${(asset as any).displaySymbol || asset.symbol}.png`}
+                      src={`${API_URL}/logos/${asset.symbol}.png`}
                       alt={asset.symbol}
                       sx={{ 
                         bgcolor: 'rgba(255,255,255,0.1)', 
