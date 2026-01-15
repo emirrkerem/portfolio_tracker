@@ -228,7 +228,7 @@ export default function WalletManager() {
 
     try {
       const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
-      const headers = { 'Content-Type': 'application/json', 'X-User-ID': user.id || '1' };
+      const headers = { 'Content-Type': 'application/json', 'X-User-ID': String(user.id || '1') };
 
       if (editMode && editingId !== null) {
         await fetch(`${API_URL}/api/wallet`, {

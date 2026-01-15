@@ -77,7 +77,7 @@ export default function StockDetailView() {
         if (!symbol) return;
         try {
             const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
-            const headers = { 'X-User-ID': user.id || '1' };
+            const headers = { 'X-User-ID': String(user.id || '1') };
             const allRes = await fetch(`${API_URL}/api/transactions`, { headers });
             const allTx = await allRes.json();
             if (Array.isArray(allTx)) {

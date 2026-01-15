@@ -77,7 +77,7 @@ export default function TargetView() {
     const fetchData = async () => {
       try {
         const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
-        const headers = { 'X-User-ID': user.id || '1' };
+        const headers = { 'X-User-ID': String(user.id || '1') };
 
         // 1. Mevcut Portföy Değerini Çek
         const portRes = await fetch(`${API_URL}/api/portfolio/history`, { headers });
@@ -133,7 +133,7 @@ export default function TargetView() {
     setSaving(true);
     try {
       const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
-      const headers = { 'Content-Type': 'application/json', 'X-User-ID': user.id || '1' };
+      const headers = { 'Content-Type': 'application/json', 'X-User-ID': String(user.id || '1') };
 
       await fetch(`${API_URL}/api/targets`, {
         method: 'POST',
@@ -156,7 +156,7 @@ export default function TargetView() {
   const handleDeletePlan = async () => {
     try {
       const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
-      const headers = { 'X-User-ID': user.id || '1' };
+      const headers = { 'X-User-ID': String(user.id || '1') };
       await fetch(`${API_URL}/api/targets`, { method: 'DELETE', headers });
       // State'leri sıfırla
       setStartingAmount('0');

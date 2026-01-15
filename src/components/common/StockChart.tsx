@@ -166,7 +166,7 @@ export default function StockChart({ symbol, height = '320px', onPriceUpdate }: 
     const fetchTransactions = async () => {
       try {
         const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
-        const headers = { 'X-User-ID': user.id || '1' };
+        const headers = { 'X-User-ID': String(user.id || '1') };
         const res = await fetch(`${API_URL}/api/transactions`, { headers });
         const data = await res.json();
         if (Array.isArray(data)) {

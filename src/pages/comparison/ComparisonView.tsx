@@ -38,7 +38,7 @@ export default function ComparisonView() {
     const fetchPortfolio = async () => {
       try {
         const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
-        const headers = { 'X-User-ID': user.id || '1' };
+        const headers = { 'X-User-ID': String(user.id || '1') };
         const res = await fetch(`${API_URL}/api/portfolio/history`, { headers });
         const data = await res.json();
         if (Array.isArray(data)) {
