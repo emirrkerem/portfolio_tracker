@@ -185,9 +185,14 @@ def create_tables(db):
         )
     ''')
     
+    db.commit()
+    
     # Varsayılan Kullanıcı Oluştur
     try:
-        db.execute('INSERT OR IGNORE INTO users (id, username, password_hash) VALUES (1, "demo", "pbkdf2:sha256:260000$placeholder$placeholder")')
+        if db.is_postgres:
+            db.execute("INSERT INTO users (id, username, password_hash) VALUES (1, 'demo', 'pbkdf2:sha256:260000$placeholder$placeholder') ON CONFLICT DO NOTHING")
+        else:
+            db.execute("INSERT OR IGNORE INTO users (id, username, password_hash) VALUES (1, 'demo', 'pbkdf2:sha256:260000$placeholder$placeholder')")
     except:
         pass
     
