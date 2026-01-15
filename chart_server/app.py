@@ -40,6 +40,20 @@ from logging.handlers import RotatingFileHandler
 import psycopg2
 import psycopg2.extras
 
+# --- YENİ YARDIMCI FONKSİYON ---
+def query_to_dataframe(db, query, params=()):
+    """Veritabanı sorgusunu güvenli bir şekilde Pandas DataFrame'e çevirir."""
+    cursor = db.execute(query, params)
+    data = cursor.fetchall()
+    if not data:
+        return pd.DataFrame()
+    
+    # Sütun isimlerini cursor'dan al
+    columns = [desc[0] for desc in cursor.description]
+    
+    # dict-like satırlardan DataFrame oluştur
+    return pd.DataFrame([dict(row) for row in data], columns=columns)
+
 # --- AYARLAR VE YOL TANIMLAMALARI ---
 if getattr(sys, 'frozen', False):
     # Uygulama .exe olarak çalışıyorsa (PyInstaller ile paketlenmiş)
@@ -764,13 +778,7 @@ def handle_portfolio():
     # GET: İşlemleri oku ve portföy özetini hesapla
     if request.method == 'GET':
         try:
-            # Veritabanından işlemleri çek
-            # Pandas read_sql_query raw connection ister
-            if db.is_postgres:
-                # Postgres için %s kullan
-                df = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = %s", db.conn, params=(user_id,))
-            else:
-                df = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = ?", db.conn, params=(user_id,))
+            df = query_to_dataframe(db, "SELECT * FROM transactions WHERE user_id = ?", params=(user_id,))
             
             if not df.empty:
                 # Sütun isimlerini düzelt (total_cost -> totalCost)
@@ -835,10 +843,7 @@ def get_transactions():
     db = get_db()
 
     try:
-        if db.is_postgres:
-            df = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = %s", db.conn, params=(user_id,))
-        else:
-            df = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = ?", db.conn, params=(user_id,))
+        df = query_to_dataframe(db, "SELECT * FROM transactions WHERE user_id = ?", params=(user_id,))
         
         if not df.empty:
             # Sütun isimlerini frontend ile uyumlu hale getir (total_cost -> totalCost)
@@ -959,10 +964,7 @@ def handle_wallet():
     # GET: Bakiyeyi Hesapla
     if request.method == 'GET':
         try:
-            if db.is_postgres:
-                df = pd.read_sql_query("SELECT * FROM wallet WHERE user_id = %s", db.conn, params=(user_id,))
-            else:
-                df = pd.read_sql_query("SELECT * FROM wallet WHERE user_id = ?", db.conn, params=(user_id,))
+            df = query_to_dataframe(db, "SELECT * FROM wallet WHERE user_id = ?", params=(user_id,))
             
             if not df.empty:
                 # Bakiye Hesaplama (DEPOSIT - WITHDRAW)
@@ -1197,12 +1199,8 @@ def calculate_portfolio_history(user_id, db):
     
     try:
         # Verileri SQL'den çek
-        if db.is_postgres:
-            df_wallet = pd.read_sql_query("SELECT * FROM wallet WHERE user_id = %s", db.conn, params=(user_id,))
-            df_tx = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = %s", db.conn, params=(user_id,))
-        else:
-            df_wallet = pd.read_sql_query("SELECT * FROM wallet WHERE user_id = ?", db.conn, params=(user_id,))
-            df_tx = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = ?", db.conn, params=(user_id,))
+        df_wallet = query_to_dataframe(db, "SELECT * FROM wallet WHERE user_id = ?", params=(user_id,))
+        df_tx = query_to_dataframe(db, "SELECT * FROM transactions WHERE user_id = ?", params=(user_id,))
 
         if df_wallet.empty and df_tx.empty:
              return []
@@ -1550,10 +1548,7 @@ def get_friend_holdings(friend_id):
 
     try:
         # İşlemleri çek
-        if db.is_postgres:
-            df = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = %s", db.conn, params=(friend_id,))
-        else:
-            df = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = ?", db.conn, params=(friend_id,))
+        df = query_to_dataframe(db, "SELECT * FROM transactions WHERE user_id = ?", params=(friend_id,))
         if df.empty:
             return jsonify([])
 
