@@ -93,16 +93,35 @@ const LEVERAGED_LIST = [
   { symbol: 'BITI', name: 'Short Bitcoin Strategy ETF' },
 ];
 
+const COIN_LIST = [
+  { symbol: 'BTC-USD', name: 'Bitcoin' },
+  { symbol: 'ETH-USD', name: 'Ethereum' },
+  { symbol: 'SOL-USD', name: 'Solana' },
+  { symbol: 'BNB-USD', name: 'Binance Coin' },
+  { symbol: 'XRP-USD', name: 'XRP' },
+  { symbol: 'DOGE-USD', name: 'Dogecoin' },
+  { symbol: 'ADA-USD', name: 'Cardano' },
+  { symbol: 'AVAX-USD', name: 'Avalanche' },
+  { symbol: 'TRX-USD', name: 'TRON' },
+  { symbol: 'DOT-USD', name: 'Polkadot' },
+  { symbol: 'LINK-USD', name: 'Chainlink' },
+  { symbol: 'MATIC-USD', name: 'Polygon' },
+  { symbol: 'LTC-USD', name: 'Litecoin' },
+  { symbol: 'SHIB-USD', name: 'Shiba Inu' },
+  { symbol: 'BCH-USD', name: 'Bitcoin Cash' },
+];
+
 export default function DashboardView() {
   const navigate = useNavigate();
   // Context'ten searchTerm'i almaya çalışıyoruz (Transfer işlemi)
   // Not: StocksContext dosyasını güncellemeniz gerekebilir.
   const { stocks: contextStocks, setStocks: setStocksContext, searchTerm: contextSearchTerm } = useStocks() as any;
-  const [activeTab, setActiveTab] = useState<'stocks' | 'etf' | 'leveraged' | 'tefas'>('stocks');
+  const [activeTab, setActiveTab] = useState<'stocks' | 'etf' | 'leveraged' | 'coin'>('stocks');
   const [stocks, setStocks] = useState<StockData[]>(contextStocks && contextStocks.length > 0 ? contextStocks : []);
   const [marketOverview, setMarketOverview] = useState(MARKET_OVERVIEW);
   const [etfs, setEtfs] = useState<StockData[]>([]);
   const [leveragedStocks, setLeveragedStocks] = useState<StockData[]>([]);
+  const [coins, setCoins] = useState<StockData[]>([]);
   const [loading, setLoading] = useState(!(contextStocks && contextStocks.length > 0));
   // Eğer context'te searchTerm yoksa yerel state kullan (Fallback)
   const [localSearchTerm, setLocalSearchTerm] = useState('');
@@ -428,12 +447,73 @@ export default function DashboardView() {
     }
   }, [activeTab, leveragedStocks.length]);
 
+  // Coin Verilerini Çek
+  useEffect(() => {
+    if (activeTab === 'coin' && coins.length === 0) {
+      const fetchCoins = async () => {
+        setLoading(true);
+        try {
+          // Başlangıç listesi
+          const initialCoins = COIN_LIST.map(e => ({
+            symbol: e.symbol,
+            name: e.name,
+            price: 0,
+            change: 0,
+            pctChange: 0,
+            cap: 'N/A',
+            ytd: 'N/A'
+          }));
+          setCoins(initialCoins);
+
+          const symbols = initialCoins.map(s => s.symbol);
+          const chunkSize = 10;
+          const chunks = [];
+          for (let i = 0; i < symbols.length; i += chunkSize) {
+            chunks.push(symbols.slice(i, i + chunkSize));
+          }
+
+          const promises = chunks.map(chunk => 
+            fetch(`${API_URL}/api/market?symbols=${chunk.join(',')}`)
+              .then(res => res.json())
+              .catch(() => [])
+          );
+
+          const results = await Promise.all(promises);
+          const allData: any[] = [];
+          results.forEach(res => { if (Array.isArray(res)) allData.push(...res); });
+
+          if (allData.length > 0) {
+            setCoins(prev => prev.map(coin => {
+              const marketData = allData.find((d: any) => d.symbol === coin.symbol);
+              if (marketData) {
+                return {
+                  ...coin,
+                  price: marketData.price,
+                  change: marketData.change,
+                  pctChange: marketData.pctChange,
+                  cap: marketData.cap,
+                  ytd: marketData.ytd
+                };
+              }
+              return coin;
+            }));
+          }
+        } catch (error) {
+          console.error("Coin verisi çekilemedi:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchCoins();
+    }
+  }, [activeTab, coins.length]);
+
   // Fiyat değişimlerini izle ve flash efekti tetikle
   useEffect(() => {
     const newFlashStates: { [key: string]: 'up' | 'down' | null } = {};
     let hasChanges = false;
 
-    const currentList = activeTab === 'stocks' ? stocks : (activeTab === 'etf' ? etfs : leveragedStocks);
+    const currentList = activeTab === 'stocks' ? stocks : (activeTab === 'etf' ? etfs : (activeTab === 'leveraged' ? leveragedStocks : coins));
 
     currentList.forEach(stock => {
       const prevPrice = prevPricesRef.current[stock.symbol];
@@ -464,7 +544,7 @@ export default function DashboardView() {
         });
       }, 1000);
     }
-  }, [stocks, etfs, leveragedStocks, activeTab]);
+  }, [stocks, etfs, leveragedStocks, coins, activeTab]);
 
   // Arama Terimi Değiştiğinde API'den Ara (Debounce ile)
   useEffect(() => {
@@ -569,7 +649,7 @@ export default function DashboardView() {
 
   // Arama filtresi
   const filteredStocks = useMemo(() => {
-    const sourceList = activeTab === 'stocks' ? stocks : (activeTab === 'etf' ? etfs : leveragedStocks);
+    const sourceList = activeTab === 'stocks' ? stocks : (activeTab === 'etf' ? etfs : (activeTab === 'leveraged' ? leveragedStocks : coins));
     if (!Array.isArray(sourceList)) return []; // Liste değilse boş dön
     let result = sourceList.filter(stock => 
       stock && ( // Stock objesi var mı kontrol et
@@ -599,7 +679,7 @@ export default function DashboardView() {
     }
 
     return result;
-  }, [stocks, etfs, leveragedStocks, activeTab, searchTerm, sortConfig]);
+  }, [stocks, etfs, leveragedStocks, coins, activeTab, searchTerm, sortConfig]);
 
   return (
     <Box sx={{ 
@@ -678,6 +758,20 @@ export default function DashboardView() {
                 }}
               >
                 Leveraged Stocks
+              </Button>
+              <Button
+                onClick={() => setActiveTab('coin')}
+                sx={{
+                  color: activeTab === 'coin' ? 'primary.main' : '#a0a0a0',
+                  textTransform: 'none',
+                  fontSize: '0.875rem',
+                  fontWeight: activeTab === 'coin' ? 'bold' : 'normal',
+                  minWidth: 'auto',
+                  px: 2,
+                  '&:hover': { backgroundColor: 'transparent' }
+                }}
+              >
+                Coin
               </Button>
             </Box>
             
@@ -867,7 +961,7 @@ export default function DashboardView() {
                     </TableRow>
                     {searchResults.map((result) => (
                       // Eğer zaten listede varsa gösterme (Aktif tab listesinde)
-                      !(activeTab === 'stocks' ? stocks : (activeTab === 'etf' ? etfs : leveragedStocks)).some(s => s && s.symbol === result.symbol) && (
+                      !(activeTab === 'stocks' ? stocks : (activeTab === 'etf' ? etfs : (activeTab === 'leveraged' ? leveragedStocks : coins))).some(s => s && s.symbol === result.symbol) && (
                         <TableRow 
                           hover 
                           key={result.symbol}
