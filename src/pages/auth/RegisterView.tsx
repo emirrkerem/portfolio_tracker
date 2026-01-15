@@ -14,12 +14,14 @@ export default function RegisterView() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setLoading(true);
 
     try {
       const res = await fetch(`${API_URL}/api/register`, {
@@ -36,7 +38,10 @@ export default function RegisterView() {
         setError(data.error || 'Kayıt başarısız.');
       }
     } catch (err) {
+      console.error("Register Error:", err);
       setError('Sunucu hatası.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -72,8 +77,8 @@ export default function RegisterView() {
             onChange={(e) => setPassword(e.target.value)}
             sx={{ mb: 3, '& .MuiFilledInput-root': { bgcolor: 'rgba(255,255,255,0.05)', color: 'white' }, '& .MuiInputLabel-root': { color: '#888' } }}
           />
-          <Button type="submit" fullWidth variant="contained" size="large" sx={{ bgcolor: '#00c853', fontWeight: 'bold', py: 1.5, borderRadius: 2, '&:hover': { bgcolor: '#00e676' } }}>
-            Kayıt Ol
+          <Button type="submit" fullWidth variant="contained" size="large" disabled={loading} sx={{ bgcolor: '#00c853', fontWeight: 'bold', py: 1.5, borderRadius: 2, '&:hover': { bgcolor: '#00e676' } }}>
+            {loading ? 'Kaydediliyor...' : 'Kayıt Ol'}
           </Button>
         </form>
 

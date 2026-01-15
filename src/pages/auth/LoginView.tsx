@@ -13,11 +13,13 @@ export default function LoginView({ onLogin }: { onLogin: (user: any) => void })
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     try {
       const res = await fetch(`${API_URL}/api/login`, {
@@ -34,7 +36,10 @@ export default function LoginView({ onLogin }: { onLogin: (user: any) => void })
         setError(data.error || 'Giriş başarısız.');
       }
     } catch (err) {
+      console.error("Login Error:", err);
       setError('Sunucu hatası. Backend çalışıyor mu?');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -69,8 +74,8 @@ export default function LoginView({ onLogin }: { onLogin: (user: any) => void })
             onChange={(e) => setPassword(e.target.value)}
             sx={{ mb: 3, '& .MuiFilledInput-root': { bgcolor: 'rgba(255,255,255,0.05)', color: 'white' }, '& .MuiInputLabel-root': { color: '#888' } }}
           />
-          <Button type="submit" fullWidth variant="contained" size="large" sx={{ bgcolor: '#2979ff', fontWeight: 'bold', py: 1.5, borderRadius: 2 }}>
-            Giriş Yap
+          <Button type="submit" fullWidth variant="contained" size="large" disabled={loading} sx={{ bgcolor: '#2979ff', fontWeight: 'bold', py: 1.5, borderRadius: 2 }}>
+            {loading ? 'Giriş Yapılıyor...' : 'Giriş Yap'}
           </Button>
         </form>
 
