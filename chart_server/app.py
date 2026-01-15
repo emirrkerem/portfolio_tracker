@@ -398,6 +398,11 @@ def download_logo_internal(symbol):
     if os.path.exists(save_path) and os.path.getsize(save_path) > 0:
         return True
 
+    # 2. Projenin içinde (public/logos -> dist/logos) varsa işlem yapma
+    # Bu sayede GitHub'daki logolar için API harcanmaz, kalıcı klasör kullanılır.
+    if os.path.exists(os.path.join(app.static_folder, 'logos', filename)):
+        return True
+
     print(f"[LOGO] {symbol} için aranıyor (Auto-Fetch)...")
     logo_url = None
 
@@ -452,22 +457,26 @@ def download_logo_internal(symbol):
 # Logoları sunmak için route (Exe modunda veya Flask serve modunda çalışır)
 @app.route('/logos/<path:filename>')
 def serve_logo(filename):
-    # Dosya yolunu oluştur
-    file_path = os.path.join(LOGOS_DIR, filename)
-    
-    # 1. Dosya yoksa indirmeyi dene (Otomatik Kurtarma)
-    if not os.path.exists(file_path):
-        # Dosya adından sembolü çıkar (AAPL.png -> AAPL)
-        symbol = os.path.splitext(filename)[0]
-        # URL decode gerekebilir ama genelde filename düzgündür
-        download_logo_internal(symbol)
-    
-    # 2. Tekrar kontrol et ve sun
-    if os.path.exists(file_path):
+    # 1. Önce indirilenler (storage) klasörüne bak - En güncel buradadır
+    storage_path = os.path.join(LOGOS_DIR, filename)
+    if os.path.exists(storage_path):
         return send_from_directory(LOGOS_DIR, filename)
     
-    # 3. Yoksa statik klasöre bak (React build içindeki)
-    return send_from_directory(os.path.join(app.static_folder, 'logos'), filename)
+    # 2. Yoksa, projenin içindeki statik logolara bak (dist/logos) - Yedek
+    # Bu sayede popüler logoları projeye dahil ederseniz API çağrısı yapılmaz.
+    static_logo_path = os.path.join(app.static_folder, 'logos', filename)
+    if os.path.exists(static_logo_path):
+        return send_from_directory(os.path.join(app.static_folder, 'logos'), filename)
+    
+    # 3. İkisinde de yoksa indir (Otomatik Kurtarma)
+    symbol = os.path.splitext(filename)[0]
+    download_logo_internal(symbol)
+    
+    # İndirme sonrası tekrar kontrol et
+    if os.path.exists(storage_path):
+        return send_from_directory(LOGOS_DIR, filename)
+    
+    return jsonify({'error': 'Logo not found'}), 404
 
 @app.route('/api/logo/fetch', methods=['POST'])
 def fetch_logo():
