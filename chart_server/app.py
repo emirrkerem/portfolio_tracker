@@ -191,6 +191,8 @@ def create_tables(db):
     try:
         if db.is_postgres:
             db.execute("INSERT INTO users (id, username, password_hash) VALUES (1, 'demo', 'pbkdf2:sha256:260000$placeholder$placeholder') ON CONFLICT DO NOTHING")
+            # PostgreSQL Sequence Senkronizasyonu (ID çakışmasını önlemek için)
+            db.execute("SELECT setval(pg_get_serial_sequence('users', 'id'), COALESCE((SELECT MAX(id) FROM users), 1))")
         else:
             db.execute("INSERT OR IGNORE INTO users (id, username, password_hash) VALUES (1, 'demo', 'pbkdf2:sha256:260000$placeholder$placeholder')")
     except:
@@ -1183,6 +1185,21 @@ def reset_all_data():
     except Exception as e:
         app.logger.error(f"Reset Error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
+# --- VERITABANI BAKIM (Sequence Fix) ---
+@app.route('/api/fix-db', methods=['GET'])
+def fix_db_sequences():
+    db = get_db()
+    if db.is_postgres:
+        try:
+            # Tüm tabloların ID sayaçlarını (sequence) mevcut en son ID'ye eşitle
+            for table in ['users', 'transactions', 'wallet', 'targets', 'friendships', 'friend_requests']:
+                db.execute(f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), COALESCE((SELECT MAX(id) FROM {table}), 1))")
+            db.commit()
+            return jsonify({"status": "success", "message": "PostgreSQL sequence'leri senkronize edildi."})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    return jsonify({"status": "ignored", "message": "Bu işlem sadece PostgreSQL için gereklidir."})
 
 # --- PORTFÖY HESAPLAMA MOTORU (Ortak Fonksiyon) ---
 def calculate_portfolio_history(user_id, db):
