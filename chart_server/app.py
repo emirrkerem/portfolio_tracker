@@ -387,94 +387,100 @@ HAS_PUBLIC = os.path.exists(os.path.join(BASE_DIR, '..', 'public'))
 if HAS_PUBLIC:
     os.makedirs(PUBLIC_LOGOS_DIR, exist_ok=True)
 
+# --- LOGO İNDİRME MOTORU (Otomatik Kurtarma İçin) ---
+def download_logo_internal(symbol):
+    """Logoyu verilen sembol için indirmeye çalışır."""
+    symbol = symbol.upper()
+    filename = f"{symbol}.png"
+    save_path = os.path.join(LOGOS_DIR, filename)
+    
+    # Zaten varsa işlem yapma
+    if os.path.exists(save_path) and os.path.getsize(save_path) > 0:
+        return True
+
+    print(f"[LOGO] {symbol} için aranıyor (Auto-Fetch)...")
+    logo_url = None
+
+    # 1. Finnhub API
+    try:
+        finnhub_token = "d5ijfv1r01qo1lb2f000d5ijfv1r01qo1lb2f00g"
+        r = requests.get(f"https://finnhub.io/api/v1/stock/profile2?symbol={symbol}&token={finnhub_token}", timeout=5)
+        if r.status_code == 200:
+            profile = r.json()
+            logo_url = profile.get('logo')
+    except:
+        pass
+
+    # 2. Yahoo Finance / Clearbit
+    if not logo_url:
+        try:
+            ticker = yf.Ticker(symbol)
+            info = ticker.info
+            logo_url = info.get('logo_url')
+            if not logo_url:
+                website = info.get('website')
+                if website:
+                    from urllib.parse import urlparse
+                    domain = urlparse(website).netloc.replace('www.', '')
+                    logo_url = f"https://logo.clearbit.com/{domain}"
+        except:
+            pass
+
+    # 3. İndir ve Kaydet
+    if logo_url:
+        try:
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            r = requests.get(logo_url, headers=headers, stream=True, timeout=10)
+            if r.status_code == 200:
+                with open(save_path, 'wb') as f:
+                    for chunk in r.iter_content(1024):
+                        f.write(chunk)
+                
+                # Dev ortamı senkronizasyonu
+                if HAS_PUBLIC:
+                    import shutil
+                    try:
+                        shutil.copy2(save_path, os.path.join(PUBLIC_LOGOS_DIR, filename))
+                    except: pass
+                
+                return True
+        except:
+            pass
+            
+    return False
+
 # Logoları sunmak için route (Exe modunda veya Flask serve modunda çalışır)
 @app.route('/logos/<path:filename>')
 def serve_logo(filename):
-    # 1. Once indirilenler klasorune bak (storage/logos)
-    if os.path.exists(os.path.join(LOGOS_DIR, filename)):
+    # Dosya yolunu oluştur
+    file_path = os.path.join(LOGOS_DIR, filename)
+    
+    # 1. Dosya yoksa indirmeyi dene (Otomatik Kurtarma)
+    if not os.path.exists(file_path):
+        # Dosya adından sembolü çıkar (AAPL.png -> AAPL)
+        symbol = os.path.splitext(filename)[0]
+        # URL decode gerekebilir ama genelde filename düzgündür
+        download_logo_internal(symbol)
+    
+    # 2. Tekrar kontrol et ve sun
+    if os.path.exists(file_path):
         return send_from_directory(LOGOS_DIR, filename)
     
-    # 2. Yoksa uygulamanin icindeki statik klasore bak (dist/logos)
+    # 3. Yoksa statik klasöre bak (React build içindeki)
     return send_from_directory(os.path.join(app.static_folder, 'logos'), filename)
 
 @app.route('/api/logo/fetch', methods=['POST'])
 def fetch_logo():
-    try:
-        data = request.json
-        symbol = data.get('symbol')
-        if not symbol:
-            return jsonify({'error': 'Symbol required'}), 400
-        
-        symbol = symbol.upper()
-        filename = f"{symbol}.png"
-        save_path = os.path.join(LOGOS_DIR, filename)
-        
-        # 1. Kontrol: Logo zaten var mı ve boyutu 0'dan büyük mü? (Bozuk dosyaları tekrar indirsin)
-        if os.path.exists(save_path) and os.path.getsize(save_path) > 0:
-            print(f"[LOGO] {symbol} zaten mevcut: {save_path}")
-            # Dev ortamı için senkronize et
-            if HAS_PUBLIC and not os.path.exists(os.path.join(PUBLIC_LOGOS_DIR, filename)):
-                import shutil
-                shutil.copy2(save_path, os.path.join(PUBLIC_LOGOS_DIR, filename))
-            return jsonify({'status': 'exists', 'url': f'/logos/{filename}'})
-
-        print(f"[LOGO] {symbol} için aranıyor...")
-        logo_url = None
-
-        # 2. Finnhub API (Öncelikli)
-        try:
-            finnhub_token = "d5ijfv1r01qo1lb2f000d5ijfv1r01qo1lb2f00g"
-            r = requests.get(f"https://finnhub.io/api/v1/stock/profile2?symbol={symbol}&token={finnhub_token}", timeout=5)
-            if r.status_code == 200:
-                profile = r.json()
-                logo_url = profile.get('logo')
-                if logo_url: print(f"[LOGO] Finnhub'da bulundu: {logo_url}")
-        except Exception as e:
-            print(f"[LOGO] Finnhub hatası: {e}")
-
-        # 3. Yahoo Finance / Clearbit (Yedek)
-        if not logo_url:
-            try:
-                ticker = yf.Ticker(symbol)
-                info = ticker.info
-                logo_url = info.get('logo_url')
-                
-                if not logo_url:
-                    # Fallback: Clearbit API
-                    website = info.get('website')
-                    if website:
-                        from urllib.parse import urlparse
-                        domain = urlparse(website).netloc.replace('www.', '')
-                        logo_url = f"https://logo.clearbit.com/{domain}"
-                        print(f"[LOGO] Clearbit denenecek: {logo_url}")
-            except Exception as e:
-                print(f"[LOGO] YFinance hatası: {e}")
-
-        # 4. İndirme ve Kaydetme
-        if logo_url:
-            try:
-                headers = {'User-Agent': 'Mozilla/5.0'}
-                r = requests.get(logo_url, headers=headers, stream=True, timeout=10)
-                if r.status_code == 200:
-                    with open(save_path, 'wb') as f:
-                        for chunk in r.iter_content(1024):
-                            f.write(chunk)
-                    print(f"[LOGO] Kaydedildi: {save_path}")
-
-                    # Dev ortamı için public'e de kopyala
-                    if HAS_PUBLIC:
-                        import shutil
-                        shutil.copy2(save_path, os.path.join(PUBLIC_LOGOS_DIR, filename))
-                    
-                    return jsonify({'status': 'downloaded', 'url': f'/logos/{filename}'})
-            except Exception as e:
-                print(f"[LOGO] İndirme hatası: {e}")
-        
-        print(f"[LOGO] {symbol} için logo bulunamadı.")
+    data = request.json
+    symbol = data.get('symbol')
+    if not symbol:
+        return jsonify({'error': 'Symbol required'}), 400
+    
+    success = download_logo_internal(symbol)
+    if success:
+        return jsonify({'status': 'downloaded', 'url': f'/logos/{symbol.upper()}.png'})
+    else:
         return jsonify({'status': 'not_found'}), 404
-    except Exception as e:
-        print(f"[LOGO] Genel hata: {e}")
-        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/stock', methods=['GET'])
 def get_stock_data():
