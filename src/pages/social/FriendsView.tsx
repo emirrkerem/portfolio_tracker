@@ -31,6 +31,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
+import { API_URL } from '../../config';
 
 export default function FriendsView() {
   const [friends, setFriends] = useState<any[]>([]);
