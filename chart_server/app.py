@@ -762,10 +762,6 @@ def handle_portfolio():
 
     # GET: İşlemleri oku ve portföy özetini hesapla
     if request.method == 'GET':
-        # Cache Kontrolü
-        cached = get_from_cache(f'user_{user_id}_portfolio_summary')
-        if cached: return jsonify(cached)
-
         try:
             # Veritabanından işlemleri çek
             # Pandas read_sql_query raw connection ister
@@ -800,7 +796,6 @@ def handle_portfolio():
                 portfolio = portfolio[portfolio['quantity'] > 0]
                 
                 result = portfolio.to_dict(orient='records')
-                save_to_cache(f'user_{user_id}_portfolio_summary', result)
                 return jsonify(result)
             return jsonify([])
         except Exception as e:
@@ -838,10 +833,6 @@ def get_transactions():
     user_id = get_current_user_id()
     db = get_db()
 
-    # Cache Kontrolü
-    cached = get_from_cache(f'user_{user_id}_transactions')
-    if cached: return jsonify(cached)
-
     try:
         if db.is_postgres:
             df = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = %s", db.conn, params=(user_id,))
@@ -860,7 +851,6 @@ def get_transactions():
                 df['date'] = df['date'].dt.strftime('%Y-%m-%dT%H:%M')
             
             result = df.to_dict(orient='records')
-            save_to_cache(f'user_{user_id}_transactions', result)
             return jsonify(result)
         return jsonify([])
     except Exception as e:
@@ -967,10 +957,6 @@ def handle_wallet():
 
     # GET: Bakiyeyi Hesapla
     if request.method == 'GET':
-        # Cache Kontrolü
-        cached = get_from_cache(f'user_{user_id}_wallet')
-        if cached: return jsonify(cached)
-
         try:
             if db.is_postgres:
                 df = pd.read_sql_query("SELECT * FROM wallet WHERE user_id = %s", db.conn, params=(user_id,))
@@ -994,7 +980,6 @@ def handle_wallet():
                     transactions.sort(key=lambda x: x['date'], reverse=True)
                         
                 result = {'balance': balance, 'transactions': transactions}
-                save_to_cache(f'user_{user_id}_wallet', result)
                 return jsonify(result)
             return jsonify({'balance': 0.0, 'transactions': []})
         except Exception as e:
@@ -1109,15 +1094,10 @@ def handle_targets():
     db = get_db()
 
     if request.method == 'GET':
-        # Cache Kontrolü
-        cached = get_from_cache(f'user_{user_id}_targets')
-        if cached: return jsonify(cached)
-
         cur = db.execute("SELECT * FROM targets WHERE user_id = ?", (user_id,))
         row = cur.fetchone()
         if row:
             data = dict(row)
-            save_to_cache(f'user_{user_id}_targets', data)
             return jsonify(data)
         return jsonify({}) # Boş obje dön
     
@@ -1384,14 +1364,7 @@ def get_portfolio_history():
     user_id = get_current_user_id()
     db = get_db()
 
-    # Cache Kontrolü
-    cached = get_from_cache(f'user_{user_id}_portfolio_history')
-    if cached: return jsonify(cached)
-
     result = calculate_portfolio_history(user_id, db)
-    
-    if result:
-        save_to_cache(f'user_{user_id}_portfolio_history', result)
     
     return jsonify(result)
 

@@ -64,7 +64,7 @@ export default function WalletManager() {
     const fetchWalletData = async () => {
       try {
         const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
-        const headers = { 'X-User-ID': user.id || '1' };
+        const headers = { 'X-User-ID': String(user.id || '1') };
         const res = await fetch(`${API_URL}/api/wallet`, { headers });
         const data = await res.json();
         if (data.transactions) {
