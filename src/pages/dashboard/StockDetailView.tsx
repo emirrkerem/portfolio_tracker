@@ -29,6 +29,7 @@ import InputLabel from '@mui/material/InputLabel';
 import StockChart from '../../components/common/StockChart';
 import { tradeStock } from '../../services/portfolioService';
 import { getWalletBalance } from '../../services/walletService';
+import { API_URL } from '../../config';
 
 interface StockData {
   symbol: string;
@@ -77,7 +78,7 @@ export default function StockDetailView() {
         try {
             const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
             const headers = { 'X-User-ID': user.id || '1' };
-            const allRes = await fetch(`http://localhost:5000/api/transactions`, { headers });
+            const allRes = await fetch(`${API_URL}/api/transactions`, { headers });
             const allTx = await allRes.json();
             if (Array.isArray(allTx)) {
                 // Sunucudan gelen tüm işlemler arasında bu hisseye ait olanları filtrele
@@ -100,7 +101,7 @@ export default function StockDetailView() {
 
   useEffect(() => {
     if (symbol) {
-      fetch(`http://localhost:5000/api/market?symbols=${symbol}`)
+      fetch(`${API_URL}/api/market?symbols=${symbol}`)
         .then(res => res.json())
         .then(data => {
           if (Array.isArray(data) && data.length > 0) {
@@ -138,7 +139,7 @@ export default function StockDetailView() {
         startDate.setDate(selectedDate.getDate() - 5);
         const startStr = startDate.toISOString().split('T')[0];
 
-        const response = await fetch(`http://localhost:5000/api/stock?symbol=${symbol}&start=${startStr}&end=${endStr}&interval=1d`);
+        const response = await fetch(`${API_URL}/api/stock?symbol=${symbol}&start=${startStr}&end=${endStr}&interval=1d`);
         const data = await response.json();
 
         if (Array.isArray(data) && data.length > 0) {

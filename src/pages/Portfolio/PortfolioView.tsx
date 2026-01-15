@@ -24,6 +24,7 @@ import Divider from '@mui/material/Divider';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import WalletManager from '../../components/portfolio/WalletManager';
 import PortfolioHistoryChart from '../../components/portfolio/PortfolioHistoryChart';
+import { API_URL } from '../../config';
 
 interface PortfolioItem {
   symbol: string;
@@ -67,16 +68,16 @@ export default function PortfolioView() {
       const headers = { 'X-User-ID': String(user.id || '1') };
 
       // 1. Cüzdan Bakiyesi
-      const walletRes = await fetch('http://localhost:5000/api/wallet', { headers });
+      const walletRes = await fetch(`${API_URL}/api/wallet`, { headers });
       const walletData = await walletRes.json();
       setWalletBalance(walletData.balance || 0);
 
       // 2. Portföy Hisseleri
-      const portfolioRes = await fetch('http://localhost:5000/api/portfolio', { headers });
+      const portfolioRes = await fetch(`${API_URL}/api/portfolio`, { headers });
       const portfolioData = await portfolioRes.json();
 
       // 3. Son İşlemleri Çek
-      const txRes = await fetch('http://localhost:5000/api/transactions', { headers });
+      const txRes = await fetch(`${API_URL}/api/transactions`, { headers });
       const txData = await txRes.json();
       if (Array.isArray(txData)) {
         setRecentTransactions(txData.slice(0, 5));
@@ -86,7 +87,7 @@ export default function PortfolioView() {
       if (Array.isArray(portfolioData) && portfolioData.length > 0) {
         // 4. Güncel Fiyatları Çek
         const symbols = portfolioData.map((p: any) => p.symbol).join(',');
-        const marketRes = await fetch(`http://localhost:5000/api/market?symbols=${symbols}`);
+        const marketRes = await fetch(`${API_URL}/api/market?symbols=${symbols}`);
         const marketData = await marketRes.json();
 
         let equity = 0;

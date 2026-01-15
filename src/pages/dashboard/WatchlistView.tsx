@@ -13,6 +13,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import Button from '@mui/material/Button';
 import ArrowDropUpIcon from '@mui/icons-material/ArrowDropUp';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import { API_URL } from '../../config';
 
 const parseValue = (val: any): number => {
   if (typeof val === 'number') return val;
@@ -51,7 +52,7 @@ export default function WatchlistView() {
   // Watchlist değiştiğinde verileri çek
   useEffect(() => {
     if (watchlist.length > 0) {
-      fetch(`http://localhost:5000/api/market?symbols=${watchlist.join(',')}`)
+      fetch(`${API_URL}/api/market?symbols=${watchlist.join(',')}`)
         .then(res => res.json())
         .then(data => {
             if(Array.isArray(data)) {
@@ -66,7 +67,7 @@ export default function WatchlistView() {
 
       // İzleme listesindeki hisseler için logo kontrolü yap (Eksikse çeker)
       watchlist.forEach(symbol => {
-        fetch('http://localhost:5000/api/logo/fetch', {
+        fetch(`${API_URL}/api/logo/fetch`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ symbol })

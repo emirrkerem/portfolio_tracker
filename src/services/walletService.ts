@@ -1,8 +1,10 @@
+import { API_URL } from '../config';
+
 export const getWalletBalance = async () => {
   try {
     const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
     const headers = { 'X-User-ID': String(user.id || '1') };
-    const res = await fetch('http://localhost:5000/api/wallet', { headers });
+    const res = await fetch(`${API_URL}/api/wallet`, { headers });
     return await res.json();
   } catch (error) {
     console.error("Wallet fetch error:", error);
@@ -15,7 +17,7 @@ export const addWalletTransaction = async (type: 'DEPOSIT' | 'WITHDRAW', amount:
     const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
     const headers = { 'Content-Type': 'application/json', 'X-User-ID': String(user.id || '1') };
 
-    await fetch('http://localhost:5000/api/wallet', {
+    await fetch(`${API_URL}/api/wallet`, {
       method: 'POST',
       headers: headers,
       body: JSON.stringify({ type, amount })

@@ -1624,7 +1624,9 @@ if __name__ == '__main__':
             Timer(4.0, lambda: webbrowser.open("http://localhost:5000")).start()
             app.run(port=5000, debug=False)
         else:
-            app.run(port=5000, debug=True)
+            # Render/Heroku gibi servisler PORT environment variable'ini kullanir
+            port = int(os.environ.get("PORT", 5000))
+            app.run(host='0.0.0.0', port=port, debug=False)
     except Exception as e:
         # Kritik hata durumunda Masaustune rapor yaz
         try:

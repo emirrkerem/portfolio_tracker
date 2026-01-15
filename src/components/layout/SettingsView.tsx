@@ -9,6 +9,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import Alert from '@mui/material/Alert';
+import { API_URL } from '../../config';
 
 export default function SettingsView() {
   const [open, setOpen] = useState(false);
@@ -17,7 +18,7 @@ export default function SettingsView() {
 
   const handleReset = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/reset', { method: 'POST' });
+      const res = await fetch(`${API_URL}/api/reset`, { method: 'POST' });
       if (res.ok) {
         setSuccess(true);
         setOpen(false);

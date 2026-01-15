@@ -35,6 +35,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import SellIcon from '@mui/icons-material/Sell';
+import { API_URL } from '../../config';
 
 export default function WalletManager() {
   const [open, setOpen] = useState(false);
@@ -64,7 +65,7 @@ export default function WalletManager() {
       try {
         const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
         const headers = { 'X-User-ID': user.id || '1' };
-        const res = await fetch('http://localhost:5000/api/wallet', { headers });
+        const res = await fetch(`${API_URL}/api/wallet`, { headers });
         const data = await res.json();
         if (data.transactions) {
           setTransactions(data.transactions);
@@ -109,12 +110,12 @@ export default function WalletManager() {
     try {
       const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
       const headers = { 'X-User-ID': user.id || '1' };
-      await fetch(`http://localhost:5000/api/wallet?id=${itemToDelete}`, {
+      await fetch(`${API_URL}/api/wallet?id=${itemToDelete}`, {
         method: 'DELETE',
         headers
       });
       // Listeyi güncelle
-      const res = await fetch('http://localhost:5000/api/wallet', { headers });
+      const res = await fetch(`${API_URL}/api/wallet`, { headers });
       const data = await res.json();
       if (data.transactions) {
         setTransactions(data.transactions);
@@ -230,7 +231,7 @@ export default function WalletManager() {
       const headers = { 'Content-Type': 'application/json', 'X-User-ID': user.id || '1' };
 
       if (editMode && editingId !== null) {
-        await fetch('http://localhost:5000/api/wallet', {
+        await fetch(`${API_URL}/api/wallet`, {
           method: 'PUT',
           headers: headers,
           body: JSON.stringify({
@@ -241,7 +242,7 @@ export default function WalletManager() {
           })
         });
       } else {
-        await fetch('http://localhost:5000/api/wallet', {
+        await fetch(`${API_URL}/api/wallet`, {
           method: 'POST',
           headers: headers,
           body: JSON.stringify({

@@ -24,6 +24,7 @@ import TargetView from './pages/target/TargetView';
 import LoginView from './pages/auth/LoginView';
 import RegisterView from './pages/auth/RegisterView';
 import FriendsView from './pages/social/FriendsView';
+import { API_URL } from './config';
 
 const darkTheme = createTheme({
   palette: {
@@ -136,7 +137,7 @@ function MainLayout() {
       newWatchlist = [...watchlist, symbol];
       // Logo çekme isteği gönder (Arka planda)
       console.log(`Logo fetch requested for: ${symbol}`);
-      fetch('http://localhost:5000/api/logo/fetch', {
+      fetch(`${API_URL}/api/logo/fetch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol })
@@ -167,7 +168,7 @@ function MainLayout() {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (query.length >= 1) {
-        fetch(`http://localhost:5000/api/search?q=${query}`)
+        fetch(`${API_URL}/api/search?q=${query}`)
           .then(res => res.json())
           .then(data => {
             if (Array.isArray(data)) {
@@ -305,7 +306,7 @@ function App() {
   // Heartbeat: Uygulama acik oldugu surece backend'e "ben buradayim" sinyali gonder
   useEffect(() => {
     const interval = setInterval(() => {
-      fetch('http://localhost:5000/api/heartbeat', { method: 'POST' })
+      fetch(`${API_URL}/api/heartbeat`, { method: 'POST' })
         .catch(() => { 
           // Hata olursa sessizce gec (Backend kapanmis olabilir)
         });

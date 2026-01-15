@@ -27,6 +27,7 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import { useStocks } from '../../context/StocksContext';
+import { API_URL } from '../../config';
 
 interface StockData {
   symbol: string;
@@ -130,7 +131,7 @@ export default function DashboardView() {
     } else {
       newWatchlist = [...watchlist, symbol];
       // Logo çekme isteği gönder (Arka planda)
-      fetch('http://localhost:5000/api/logo/fetch', {
+      fetch(`${API_URL}/api/logo/fetch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol })
@@ -168,7 +169,7 @@ export default function DashboardView() {
         const symbols = MARKET_OVERVIEW.map(item => item.symbol);
         // Sembolleri encode et (özellikle ^ ve = karakterleri için)
         const query = symbols.map(s => encodeURIComponent(s)).join(',');
-        const response = await fetch(`http://localhost:5000/api/market?symbols=${query}`);
+        const response = await fetch(`${API_URL}/api/market?symbols=${query}`);
         const data = await response.json();
 
         if (Array.isArray(data)) {
@@ -203,7 +204,7 @@ export default function DashboardView() {
         // 1. Eğer liste henüz yoksa veya bu bir ilk yüklemeyse, API'den Top 25 listesini çek
         if ((!updatePricesOnly && currentList.length === 0)) {
           setLoading(true);
-          const listRes = await fetch('http://localhost:5000/api/top25');
+          const listRes = await fetch(`${API_URL}/api/top25`);
           const listData = await listRes.json();
           
           if (Array.isArray(listData)) {
@@ -237,7 +238,7 @@ export default function DashboardView() {
         // Tüm parçaları paralel değil seri çekelim (Sunucuyu yormamak için) veya Promise.all ile
         // Python yfinance multithreaded olduğu için Promise.all daha iyi olabilir.
         const promises = chunks.map(chunk => 
-          fetch(`http://localhost:5000/api/market?symbols=${chunk.join(',')}`)
+          fetch(`${API_URL}/api/market?symbols=${chunk.join(',')}`)
             .then(res => res.json())
             .catch(err => {
               console.error("Veri çekme hatası:", err);
@@ -331,7 +332,7 @@ export default function DashboardView() {
           }
 
           const promises = chunks.map(chunk => 
-            fetch(`http://localhost:5000/api/market?symbols=${chunk.join(',')}`)
+            fetch(`${API_URL}/api/market?symbols=${chunk.join(',')}`)
               .then(res => res.json())
               .catch(() => [])
           );
@@ -392,7 +393,7 @@ export default function DashboardView() {
           }
 
           const promises = chunks.map(chunk => 
-            fetch(`http://localhost:5000/api/market?symbols=${chunk.join(',')}`)
+            fetch(`${API_URL}/api/market?symbols=${chunk.join(',')}`)
               .then(res => res.json())
               .catch(() => [])
           );
@@ -476,7 +477,7 @@ export default function DashboardView() {
 
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/search?q=${searchTerm}`);
+        const res = await fetch(`${API_URL}/api/search?q=${searchTerm}`);
         const data = await res.json();
         if (Array.isArray(data)) {
           setSearchResults(data);
@@ -530,7 +531,7 @@ export default function DashboardView() {
 
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/market?symbols=${upperSymbol}`);
+      const response = await fetch(`${API_URL}/api/market?symbols=${upperSymbol}`);
       const data = await response.json();
       
       if (Array.isArray(data) && data.length > 0) {

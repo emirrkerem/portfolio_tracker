@@ -10,6 +10,7 @@ import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
+import { API_URL } from '../../config';
 
 const BENCHMARKS = [
   { symbol: 'SPY', name: 'S&P 500' },
@@ -38,14 +39,14 @@ export default function ComparisonView() {
       try {
         const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
         const headers = { 'X-User-ID': user.id || '1' };
-        const res = await fetch('http://localhost:5000/api/portfolio/history', { headers });
+        const res = await fetch(`${API_URL}/api/portfolio/history`, { headers });
         const data = await res.json();
         if (Array.isArray(data)) {
           setPortfolioData(data);
         }
         
         // Arkadaşları da çek
-        const friendsRes = await fetch('http://localhost:5000/api/friends', { headers });
+        const friendsRes = await fetch(`${API_URL}/api/friends`, { headers });
         const friendsData = await friendsRes.json();
         if (Array.isArray(friendsData)) setFriends(friendsData);
 
@@ -69,13 +70,13 @@ export default function ComparisonView() {
         if (benchmarkType === 'INDEX') {
             const startDate = portfolioData[0].date;
             const endDate = new Date().toISOString().split('T')[0];
-            const res = await fetch(`http://localhost:5000/api/stock?symbol=${selectedBenchmark}&start=${startDate}&end=${endDate}&interval=1d`);
+            const res = await fetch(`${API_URL}/api/stock?symbol=${selectedBenchmark}&start=${startDate}&end=${endDate}&interval=1d`);
             const data = await res.json();
             if (Array.isArray(data)) setBenchmarkData(data);
         } else if (benchmarkType === 'FRIEND' && selectedFriendId) {
             const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
             const headers = { 'X-User-ID': String(user.id || '1') };
-            const res = await fetch(`http://localhost:5000/api/friends/portfolio/${selectedFriendId}`, { headers });
+            const res = await fetch(`${API_URL}/api/friends/portfolio/${selectedFriendId}`, { headers });
             const data = await res.json();
             // Arkadaş verisi {date, value, invested} formatında gelir, bunu {date, price} formatına çevirelim
             if (Array.isArray(data)) {

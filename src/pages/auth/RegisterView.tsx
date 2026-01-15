@@ -7,6 +7,7 @@ import Typography from '@mui/material/Typography';
 import Paper from '@mui/material/Paper';
 import Alert from '@mui/material/Alert';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import { API_URL } from '../../config';
 
 export default function RegisterView() {
   const [username, setUsername] = useState('');
@@ -21,7 +22,7 @@ export default function RegisterView() {
     setSuccess('');
 
     try {
-      const res = await fetch('http://localhost:5000/api/register', {
+      const res = await fetch(`${API_URL}/api/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })

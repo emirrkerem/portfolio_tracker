@@ -1,3 +1,5 @@
+import { API_URL } from '../config';
+
 export const tradeStock = async (symbol: string, quantity: number, price: number, type: 'BUY' | 'SELL', date: string, commission: number) => {
   if (!symbol || quantity <= 0 || price <= 0) return;
 
@@ -17,7 +19,7 @@ export const tradeStock = async (symbol: string, quantity: number, price: number
   // Sunucu bunu transactions.csv dosyasına ekleyecek
   try {
     // 1. İşlemi Kaydet (Hisse Ekle)
-    await fetch('http://localhost:5000/api/portfolio', {
+    await fetch(`${API_URL}/api/portfolio`, {
       method: 'POST',
       headers: headers,
       body: JSON.stringify({
@@ -31,7 +33,7 @@ export const tradeStock = async (symbol: string, quantity: number, price: number
     });
     
     // 2. Cüzdan Bakiyesini Güncelle (Özel Tiplerle)
-    await fetch('http://localhost:5000/api/wallet', {
+    await fetch(`${API_URL}/api/wallet`, {
       method: 'POST',
       headers: headers,
       body: JSON.stringify({
@@ -52,7 +54,7 @@ export const deleteTransaction = async (id: number) => {
   const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
   const headers = { 'X-User-ID': String(user.id || '1') };
   try {
-    await fetch(`http://localhost:5000/api/transactions?id=${id}`, {
+    await fetch(`${API_URL}/api/transactions?id=${id}`, {
       method: 'DELETE',
       headers: headers
     });
@@ -65,7 +67,7 @@ export const updateTransaction = async (transaction: any) => {
   const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
   const headers = { 'Content-Type': 'application/json', 'X-User-ID': String(user.id || '1') };
   try {
-    await fetch('http://localhost:5000/api/transactions', {
+    await fetch(`${API_URL}/api/transactions`, {
       method: 'PUT',
       headers: headers,
       body: JSON.stringify(transaction)

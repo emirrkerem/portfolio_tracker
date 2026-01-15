@@ -9,6 +9,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import Chip from '@mui/material/Chip';
+import { API_URL } from '../../config';
 
 interface Transaction {
   symbol: string;
@@ -26,7 +27,7 @@ export default function HistoryView() {
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/transactions');
+        const res = await fetch(`${API_URL}/api/transactions`);
         const data = await res.json();
         if (Array.isArray(data)) {
           setTransactions(data);

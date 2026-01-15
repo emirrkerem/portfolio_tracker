@@ -52,14 +52,14 @@ export default function FriendsView() {
       const headers = { 'X-User-ID': String(user.id || '1') };
       
       // Arkadaşları Çek
-      const res = await fetch('http://localhost:5000/api/friends', { headers });
+      const res = await fetch(`${API_URL}/api/friends`, { headers });
       const data = await res.json();
       if (Array.isArray(data)) {
         setFriends(data);
       }
       
       // Gelen İstekleri Çek
-      const reqRes = await fetch('http://localhost:5000/api/friends/requests', { headers });
+      const reqRes = await fetch(`${API_URL}/api/friends/requests`, { headers });
       const reqData = await reqRes.json();
       if (Array.isArray(reqData)) {
         setFriendRequests(reqData);
@@ -78,7 +78,7 @@ export default function FriendsView() {
     try {
       const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
       const headers = { 'X-User-ID': String(user.id || '1') };
-      const res = await fetch(`http://localhost:5000/api/users/search?q=${searchQuery}`, { headers });
+      const res = await fetch(`${API_URL}/api/users/search?q=${searchQuery}`, { headers });
       const data = await res.json();
       if (Array.isArray(data)) {
         // Zaten arkadaş olduklarımızı filtrele
@@ -96,7 +96,7 @@ export default function FriendsView() {
       const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
       const headers = { 'Content-Type': 'application/json', 'X-User-ID': String(user.id || '1') };
       
-      const res = await fetch('http://localhost:5000/api/friends/request', {
+      const res = await fetch(`${API_URL}/api/friends/request`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ friend_id: friendId })
@@ -122,7 +122,7 @@ export default function FriendsView() {
       const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
       const headers = { 'Content-Type': 'application/json', 'X-User-ID': String(user.id || '1') };
       
-      const res = await fetch('http://localhost:5000/api/friends/requests/respond', {
+      const res = await fetch(`${API_URL}/api/friends/requests/respond`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ request_id: requestId, action })
@@ -145,7 +145,7 @@ export default function FriendsView() {
       const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
       const headers = { 'X-User-ID': String(user.id || '1') };
       
-      const res = await fetch(`http://localhost:5000/api/friends?id=${friendId}`, {
+      const res = await fetch(`${API_URL}/api/friends?id=${friendId}`, {
         method: 'DELETE',
         headers
       });
@@ -167,7 +167,7 @@ export default function FriendsView() {
     try {
         const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
         const headers = { 'X-User-ID': String(user.id || '1') };
-        const res = await fetch(`http://localhost:5000/api/friends/holdings/${friend.id}`, { headers });
+        const res = await fetch(`${API_URL}/api/friends/holdings/${friend.id}`, { headers });
         const data = await res.json();
         if (Array.isArray(data)) {
             setFriendHoldings(data);

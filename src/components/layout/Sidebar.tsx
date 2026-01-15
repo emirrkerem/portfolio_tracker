@@ -17,6 +17,7 @@ import TuneIcon from '@mui/icons-material/Tune';
 import GroupIcon from '@mui/icons-material/Group';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { API_URL } from '../../config';
 
 const drawerWidth = 88;
 
@@ -32,7 +33,7 @@ export default function Sidebar() {
         if (!user.id) return;
         
         const headers = { 'X-User-ID': String(user.id) };
-        const res = await fetch('http://localhost:5000/api/friends/requests', { headers });
+        const res = await fetch(`${API_URL}/api/friends/requests`, { headers });
         const data = await res.json();
         if (Array.isArray(data)) {
           setRequestCount(data.length);

@@ -25,6 +25,7 @@ import DialogContent from '@mui/material/DialogContent';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import { deleteTransaction, updateTransaction } from '../../services/portfolioService';
+import { API_URL } from '../../config';
 
 interface StockChartProps {
   symbol: string;
@@ -67,7 +68,7 @@ export default function StockChart({ symbol, height = '320px', onPriceUpdate }: 
     if (!symbol) return;
     const fetchQuote = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/api/market?symbols=${symbol}`);
+        const response = await fetch(`${API_URL}/api/market?symbols=${symbol}`);
         const data = await response.json();
         if (data && data.length > 0) setQuoteData(data[0]);
       } catch (e) { console.error("Fiyat verisi hatası:", e); }
@@ -122,7 +123,7 @@ export default function StockChart({ symbol, height = '320px', onPriceUpdate }: 
 
       setIsChartLoading(true);
       try {
-        const response = await fetch(`http://localhost:5000/api/stock?${query}`);
+        const response = await fetch(`${API_URL}/api/stock?${query}`);
         const data = await response.json();
         if (Array.isArray(data)) setChartData(data);
       } catch (error) {
@@ -166,7 +167,7 @@ export default function StockChart({ symbol, height = '320px', onPriceUpdate }: 
       try {
         const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
         const headers = { 'X-User-ID': user.id || '1' };
-        const res = await fetch('http://localhost:5000/api/transactions', { headers });
+        const res = await fetch(`${API_URL}/api/transactions`, { headers });
         const data = await res.json();
         if (Array.isArray(data)) {
           setTransactions(data.filter((t: any) => t.symbol === symbol));

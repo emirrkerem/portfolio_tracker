@@ -7,6 +7,7 @@ import Typography from '@mui/material/Typography';
 import Paper from '@mui/material/Paper';
 import Alert from '@mui/material/Alert';
 import CandlestickChartIcon from '@mui/icons-material/CandlestickChart';
+import { API_URL } from '../../config';
 
 export default function LoginView({ onLogin }: { onLogin: (user: any) => void }) {
   const [username, setUsername] = useState('');
@@ -19,7 +20,7 @@ export default function LoginView({ onLogin }: { onLogin: (user: any) => void })
     setError('');
 
     try {
-      const res = await fetch('http://localhost:5000/api/login', {
+      const res = await fetch(`${API_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })

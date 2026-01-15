@@ -6,6 +6,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import { API_URL } from '../../config';
 
 export default function PortfolioHistoryChart() {
   // 1. Tüm Hook'lar en üstte
@@ -27,7 +28,7 @@ export default function PortfolioHistoryChart() {
       try {
         const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
         const headers = { 'X-User-ID': String(user.id || '1') };
-        const res = await fetch('http://localhost:5000/api/portfolio/history', { headers });
+        const res = await fetch(`${API_URL}/api/portfolio/history`, { headers });
         const json = await res.json();
         if (Array.isArray(json)) {
           // Gelecek tarihli verileri filtrele
@@ -61,7 +62,7 @@ export default function PortfolioHistoryChart() {
       try {
         const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
         const headers = { 'X-User-ID': String(user.id || '1') };
-        const res = await fetch('http://localhost:5000/api/wallet', { headers });
+        const res = await fetch(`${API_URL}/api/wallet`, { headers });
         const data = await res.json();
         if (data.transactions) {
           let dep = 0;
@@ -272,7 +273,7 @@ export default function PortfolioHistoryChart() {
              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#2196f3' }} />
                <Typography variant="body2" sx={{ color: '#a0a0a0', fontWeight: 'bold' }}>
-                 Ana Para: <span style={{ color: 'white' }}>${displayInv.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                 Ana Para: <Box component="span" sx={{ color: 'white' }}>${displayInv.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Box>
                </Typography>
              </Box>
           )}
