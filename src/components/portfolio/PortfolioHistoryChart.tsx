@@ -25,7 +25,9 @@ export default function PortfolioHistoryChart() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/portfolio/history');
+        const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+        const headers = { 'X-User-ID': String(user.id || '1') };
+        const res = await fetch('http://localhost:5000/api/portfolio/history', { headers });
         const json = await res.json();
         if (Array.isArray(json)) {
           // Gelecek tarihli verileri filtrele
@@ -57,7 +59,9 @@ export default function PortfolioHistoryChart() {
   useEffect(() => {
     const fetchWalletStats = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/wallet');
+        const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+        const headers = { 'X-User-ID': String(user.id || '1') };
+        const res = await fetch('http://localhost:5000/api/wallet', { headers });
         const data = await res.json();
         if (data.transactions) {
           let dep = 0;

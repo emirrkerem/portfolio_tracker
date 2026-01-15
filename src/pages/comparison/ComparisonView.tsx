@@ -8,6 +8,8 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import CircularProgress from '@mui/material/CircularProgress';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
 
 const BENCHMARKS = [
   { symbol: 'SPY', name: 'S&P 500' },
@@ -20,7 +22,10 @@ const BENCHMARKS = [
 export default function ComparisonView() {
   const [portfolioData, setPortfolioData] = useState<any[]>([]);
   const [benchmarkData, setBenchmarkData] = useState<any[]>([]);
+  const [benchmarkType, setBenchmarkType] = useState<'INDEX' | 'FRIEND'>('INDEX');
   const [selectedBenchmark, setSelectedBenchmark] = useState('SPY');
+  const [selectedFriendId, setSelectedFriendId] = useState<string>('');
+  const [friends, setFriends] = useState<any[]>([]);
   const [customSymbol, setCustomSymbol] = useState('');
   const [viewMode, setViewMode] = useState<'return' | 'profit'>('return');
   const [selectedRange, setSelectedRange] = useState('ALL');
@@ -38,6 +43,12 @@ export default function ComparisonView() {
         if (Array.isArray(data)) {
           setPortfolioData(data);
         }
+        
+        // Arkadaşları da çek
+        const friendsRes = await fetch('http://localhost:5000/api/friends', { headers });
+        const friendsData = await friendsRes.json();
+        if (Array.isArray(friendsData)) setFriends(friendsData);
+
       } catch (err) {
         console.error("Portföy verisi hatası:", err);
       }
@@ -55,14 +66,22 @@ export default function ComparisonView() {
     const fetchBenchmark = async () => {
       setLoading(true);
       try {
-        const startDate = portfolioData[0].date;
-        // Bitiş tarihi bugün
-        const endDate = new Date().toISOString().split('T')[0];
-
-        const res = await fetch(`http://localhost:5000/api/stock?symbol=${selectedBenchmark}&start=${startDate}&end=${endDate}&interval=1d`);
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setBenchmarkData(data);
+        if (benchmarkType === 'INDEX') {
+            const startDate = portfolioData[0].date;
+            const endDate = new Date().toISOString().split('T')[0];
+            const res = await fetch(`http://localhost:5000/api/stock?symbol=${selectedBenchmark}&start=${startDate}&end=${endDate}&interval=1d`);
+            const data = await res.json();
+            if (Array.isArray(data)) setBenchmarkData(data);
+        } else if (benchmarkType === 'FRIEND' && selectedFriendId) {
+            const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+            const headers = { 'X-User-ID': String(user.id || '1') };
+            const res = await fetch(`http://localhost:5000/api/friends/portfolio/${selectedFriendId}`, { headers });
+            const data = await res.json();
+            // Arkadaş verisi {date, value, invested} formatında gelir, bunu {date, price} formatına çevirelim
+            if (Array.isArray(data)) {
+                const formatted = data.map(d => ({ date: d.date, price: d.value })); // Fiyat yerine toplam değer kullanıyoruz
+                setBenchmarkData(formatted);
+            }
         }
       } catch (err) {
         console.error("Benchmark verisi hatası:", err);
@@ -72,7 +91,7 @@ export default function ComparisonView() {
     };
 
     fetchBenchmark();
-  }, [portfolioData, selectedBenchmark]);
+  }, [portfolioData, selectedBenchmark, benchmarkType, selectedFriendId]);
 
   // 3. Verileri Birleştir ve Yüzdelik/Kar Hesapla
   const fullChartData = useMemo(() => {
@@ -145,6 +164,11 @@ export default function ComparisonView() {
         }
         const portfolioPct = (cumulativePortfolioTwr - 1) * 100;
 
+        // EĞER ARKADAŞ KIYASLAMASIYSA:
+        // Arkadaşın verisi zaten portföy değeri olarak geliyor (price = value).
+        // Bu yüzden direkt değeri kullanabiliriz, simülasyona gerek yok.
+        const finalBenchmarkProfit = benchmarkType === 'FRIEND' ? (bPrice - startBenchmarkPrice) : benchmarkProfit;
+
         // Benchmark TWR: Sadece fiyat değişimi (Nakit akışı etkisi yoktur)
         const benchmarkPct = startBenchmarkPrice > 0 ? ((bPrice - startBenchmarkPrice) / startBenchmarkPrice) * 100 : 0;
 
@@ -152,7 +176,7 @@ export default function ComparisonView() {
         const safePortfolioPct = isNaN(portfolioPct) ? 0 : portfolioPct;
         const safePortfolioProfit = isNaN(portfolioProfit) ? 0 : portfolioProfit;
         const safeBenchmarkPct = isNaN(benchmarkPct) ? 0 : benchmarkPct;
-        const safeBenchmarkProfit = isNaN(benchmarkProfit) ? 0 : benchmarkProfit;
+        const safeBenchmarkProfit = isNaN(finalBenchmarkProfit) ? 0 : finalBenchmarkProfit;
 
         return {
             date: pItem.date,
@@ -167,7 +191,7 @@ export default function ComparisonView() {
             benchmarkValue: benchmarkValue
         };
     });
-  }, [portfolioData, benchmarkData, viewMode]);
+  }, [portfolioData, benchmarkData, viewMode, benchmarkType]);
 
   // Tarih Aralığına Göre Filtreleme
   const chartData = useMemo(() => {
@@ -196,6 +220,7 @@ export default function ComparisonView() {
   const handleBenchmarkChange = (_: React.MouseEvent<HTMLElement>, newBenchmark: string) => {
     if (newBenchmark !== null) {
       setSelectedBenchmark(newBenchmark);
+      setBenchmarkType('INDEX');
       setCustomSymbol('');
     }
   };
@@ -203,11 +228,14 @@ export default function ComparisonView() {
   const handleCustomSymbolSubmit = () => {
     if (customSymbol.trim()) {
       setSelectedBenchmark(customSymbol.toUpperCase().trim());
+      setBenchmarkType('INDEX');
     }
   };
 
   const handleViewModeChange = (_: React.MouseEvent<HTMLElement>, newMode: 'return' | 'profit') => {
     if (newMode !== null) {
+      // Arkadaş modundaysa ve profit seçilmeye çalışılıyorsa engelle
+      if (benchmarkType === 'FRIEND' && newMode === 'profit') return;
       setViewMode(newMode);
     }
   };
@@ -235,7 +263,13 @@ export default function ComparisonView() {
   const displayData = hoveredData || lastDataPoint;
   const benchmarkColor = '#2196f3';
 
-  const benchmarkName = BENCHMARKS.find(b => b.symbol === selectedBenchmark)?.name || selectedBenchmark;
+  let benchmarkName = selectedBenchmark;
+  if (benchmarkType === 'INDEX') {
+      benchmarkName = BENCHMARKS.find(b => b.symbol === selectedBenchmark)?.name || selectedBenchmark;
+  } else {
+      const friend = friends.find(f => String(f.id) === selectedFriendId);
+      benchmarkName = friend ? `${friend.username}'in Portföyü` : 'Arkadaş';
+  }
 
   const handleMouseMove = (e: any) => {
     if (e.activePayload && e.activePayload.length > 0) {
@@ -266,13 +300,19 @@ export default function ComparisonView() {
                 color = benchmarkColor;
             }
 
+            // Arkadaş kıyaslamasında dolar değerlerini gizle
+            const isFriendBenchmark = benchmarkType === 'FRIEND' && entry.name !== 'Portföyüm';
+            const displayValue = isFriendBenchmark && viewMode === 'profit' 
+                ? '******' 
+                : (viewMode === 'return' 
+                    ? `%${entry.value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+                    : `$${entry.value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+
             return (
               <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                 <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color }} />
                 <Typography variant="body2" sx={{ color: 'white' }}>
-                  {entry.name}: <Box component="span" sx={{ fontWeight: 'bold' }}>
-                    {viewMode === 'return' ? `%${entry.value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `$${entry.value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                  </Box>
+                  {entry.name}: <Box component="span" sx={{ fontWeight: 'bold' }}>{displayValue}</Box>
                 </Typography>
               </Box>
             );
@@ -312,6 +352,42 @@ export default function ComparisonView() {
         flexWrap: 'wrap',
         gap: 2
       }}>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <Typography sx={{ color: '#a0a0a0', fontWeight: 'bold' }}>Kıyasla:</Typography>
+            <Select
+                value={benchmarkType}
+                onChange={(e) => {
+                    const newType = e.target.value as 'INDEX' | 'FRIEND';
+                    setBenchmarkType(newType);
+                    if (newType === 'FRIEND') {
+                        setViewMode('return'); // Arkadaş seçilince otomatik yüzde moduna geç
+                    }
+                }}
+                size="small"
+                sx={{ color: 'white', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.2)' } }}
+            >
+                <MenuItem value="INDEX">Piyasa Endeksi</MenuItem>
+                <MenuItem value="FRIEND">Arkadaş</MenuItem>
+            </Select>
+
+            {benchmarkType === 'FRIEND' && (
+                <Select
+                    value={selectedFriendId}
+                    onChange={(e) => setSelectedFriendId(e.target.value)}
+                    displayEmpty
+                    size="small"
+                    sx={{ color: 'white', minWidth: 150, '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.2)' } }}
+                >
+                    <MenuItem value="" disabled>Arkadaş Seç</MenuItem>
+                    {friends.map(f => (
+                        <MenuItem key={f.id} value={String(f.id)}>{f.username}</MenuItem>
+                    ))}
+                </Select>
+            )}
+        </Box>
+
+        {benchmarkType === 'INDEX' && (
+        <>
         <ToggleButtonGroup
             value={BENCHMARKS.some(b => b.symbol === selectedBenchmark) ? selectedBenchmark : null}
             exclusive
@@ -361,6 +437,8 @@ export default function ComparisonView() {
               Ara
             </Button>
           </Box>
+          </>
+          )}
       </Paper>
 
       <Paper sx={{ 
@@ -419,11 +497,11 @@ export default function ComparisonView() {
                         }}>
                             {viewMode === 'return' 
                                 ? `${(displayData?.benchmarkPct ?? 0) >= 0 ? '+' : ''}${(displayData?.benchmarkPct ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
-                                : `${(displayData?.benchmarkProfit ?? 0) >= 0 ? '+' : ''}${(displayData?.benchmarkProfit ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                : (benchmarkType === 'FRIEND' ? '******' : `${(displayData?.benchmarkProfit ?? 0) >= 0 ? '+' : ''}${(displayData?.benchmarkProfit ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
                             }
                         </Typography>
                         <Typography sx={{ fontSize: '20px', fontWeight: 'bold', color: 'white' }}>
-                            ${(displayData?.benchmarkValue ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {benchmarkType === 'FRIEND' ? '******' : `$${(displayData?.benchmarkValue ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                         </Typography>
                     </Box>
                 </Box>
@@ -450,7 +528,7 @@ export default function ComparisonView() {
                     }
                 }}
             >
-                <ToggleButton value="profit">Kar ($)</ToggleButton>
+                <ToggleButton value="profit" disabled={benchmarkType === 'FRIEND'}>Kar ($)</ToggleButton>
                 <ToggleButton value="return">Getiri (%)</ToggleButton>
             </ToggleButtonGroup>
         </Box>
@@ -499,7 +577,7 @@ export default function ComparisonView() {
               connectNulls
             />
             <Area 
-              name={BENCHMARKS.find(b => b.symbol === selectedBenchmark)?.name || selectedBenchmark} 
+              name={benchmarkName} 
               type="linear" 
               dataKey="benchmark" 
               stroke={benchmarkColor} 

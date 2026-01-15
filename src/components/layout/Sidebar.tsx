@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 import Toolbar from '@mui/material/Toolbar';
@@ -6,12 +7,14 @@ import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import Tooltip from '@mui/material/Tooltip';
+import Badge from '@mui/material/Badge';
 import CandlestickChartIcon from '@mui/icons-material/CandlestickChart';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import AutoGraphIcon from '@mui/icons-material/AutoGraph';
 import TrackChangesIcon from '@mui/icons-material/TrackChanges';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import TuneIcon from '@mui/icons-material/Tune';
+import GroupIcon from '@mui/icons-material/Group';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -20,6 +23,29 @@ const drawerWidth = 88;
 export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [requestCount, setRequestCount] = useState(0);
+
+  useEffect(() => {
+    const fetchRequests = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+        if (!user.id) return;
+        
+        const headers = { 'X-User-ID': String(user.id) };
+        const res = await fetch('http://localhost:5000/api/friends/requests', { headers });
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setRequestCount(data.length);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    fetchRequests();
+    const interval = setInterval(fetchRequests, 10000); // 10 saniyede bir kontrol et
+    return () => clearInterval(interval);
+  }, []);
 
   const menuItems = [
     { path: '/', icon: <CandlestickChartIcon sx={{ fontSize: 28 }} />, label: 'Piyasalar' },
@@ -27,6 +53,7 @@ export default function Sidebar() {
     { path: '/portfolio', icon: <AccountBalanceWalletIcon sx={{ fontSize: 28 }} />, label: 'Portföy' },
     { path: '/comparison', icon: <AutoGraphIcon sx={{ fontSize: 28 }} />, label: 'İçgörüler' },
     { path: '/target', icon: <TrackChangesIcon sx={{ fontSize: 28 }} />, label: 'Hedefler' },
+    { path: '/friends', icon: <GroupIcon sx={{ fontSize: 28 }} />, label: 'Arkadaşlar' },
     { path: '/settings', icon: <TuneIcon sx={{ fontSize: 28 }} />, label: 'Ayarlar' },
   ];
 
@@ -90,7 +117,13 @@ export default function Sidebar() {
                         color: 'inherit'
                       }}
                     >
-                      {item.icon}
+                      {item.path === '/friends' && requestCount > 0 ? (
+                        <Badge badgeContent={requestCount} color="error">
+                          {item.icon}
+                        </Badge>
+                      ) : (
+                        item.icon
+                      )}
                     </ListItemIcon>
                   </ListItemButton>
                 </Tooltip>

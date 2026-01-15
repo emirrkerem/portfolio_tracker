@@ -23,6 +23,7 @@ import SettingsView from './pages/dashboard/SettingsView';
 import TargetView from './pages/target/TargetView';
 import LoginView from './pages/auth/LoginView';
 import RegisterView from './pages/auth/RegisterView';
+import FriendsView from './pages/social/FriendsView';
 
 const darkTheme = createTheme({
   palette: {
@@ -332,6 +333,7 @@ function App() {
               <Route path="history" element={<HistoryView />} />
               <Route path="settings" element={<SettingsView />} />
               <Route path="market/:symbol" element={<StockDetailView />} />
+              <Route path="friends" element={<FriendsView />} />
             </Route>
           ) : (
             <Route path="*" element={<LoginView onLogin={handleLogin} />} />

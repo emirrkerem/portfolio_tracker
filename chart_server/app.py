@@ -131,6 +131,19 @@ def create_tables(db):
             UNIQUE(user_id, friend_id)
         )
     ''')
+
+    # 6. Arkadaşlık İstekleri Tablosu
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS friend_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender_id INTEGER NOT NULL,
+            receiver_id INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (sender_id) REFERENCES users (id),
+            FOREIGN KEY (receiver_id) REFERENCES users (id),
+            UNIQUE(sender_id, receiver_id)
+        )
+    ''')
     
     # Varsayılan Kullanıcı Oluştur
     try:
@@ -1361,6 +1374,84 @@ def handle_friends():
         db.commit()
         return jsonify({'status': 'success'})
 
+# --- ARKADAŞLIK İSTEKLERİ ---
+
+# İstek Gönder
+@app.route('/api/friends/request', methods=['POST'])
+def send_friend_request():
+    user_id = get_current_user_id()
+    db = get_db()
+    data = request.json
+    receiver_id = data.get('friend_id')
+
+    if not receiver_id:
+        return jsonify({'error': 'Friend ID required'}), 400
+    
+    if user_id == receiver_id:
+        return jsonify({'error': 'Kendinizi ekleyemezsiniz.'}), 400
+
+    try:
+        # Zaten arkadaş mı?
+        check_friend = db.execute('SELECT 1 FROM friendships WHERE user_id = ? AND friend_id = ?', (user_id, receiver_id)).fetchone()
+        if check_friend:
+            return jsonify({'error': 'Zaten arkadaşsınız.'}), 409
+
+        # İstek gönder (UNIQUE constraint sayesinde mükerrer istek engellenir)
+        db.execute('INSERT INTO friend_requests (sender_id, receiver_id) VALUES (?, ?)', (user_id, receiver_id))
+        db.commit()
+        return jsonify({'status': 'success', 'message': 'İstek gönderildi.'})
+    except sqlite3.IntegrityError:
+        return jsonify({'error': 'İstek zaten gönderilmiş.'}), 409
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Gelen İstekleri Listele
+@app.route('/api/friends/requests', methods=['GET'])
+def get_friend_requests():
+    user_id = get_current_user_id()
+    db = get_db()
+    
+    cur = db.execute('''
+        SELECT r.id, u.username, u.id as sender_id, r.created_at
+        FROM friend_requests r
+        JOIN users u ON r.sender_id = u.id
+        WHERE r.receiver_id = ?
+    ''', (user_id,))
+    requests = [dict(row) for row in cur.fetchall()]
+    return jsonify(requests)
+
+# İsteğe Cevap Ver (Kabul/Red)
+@app.route('/api/friends/requests/respond', methods=['POST'])
+def respond_friend_request():
+    user_id = get_current_user_id()
+    db = get_db()
+    data = request.json
+    request_id = data.get('request_id')
+    action = data.get('action') # 'accept' or 'reject'
+    
+    if not request_id or not action:
+        return jsonify({'error': 'Eksik veri.'}), 400
+        
+    # İsteği bul ve doğrula (Sadece alıcı cevaplayabilir)
+    req = db.execute('SELECT * FROM friend_requests WHERE id = ? AND receiver_id = ?', (request_id, user_id)).fetchone()
+    if not req:
+        return jsonify({'error': 'İstek bulunamadı.'}), 404
+        
+    sender_id = req['sender_id']
+    
+    try:
+        if action == 'accept':
+            # Karşılıklı arkadaşlık ekle (Mutual Friendship)
+            db.execute('INSERT OR IGNORE INTO friendships (user_id, friend_id) VALUES (?, ?)', (user_id, sender_id))
+            db.execute('INSERT OR IGNORE INTO friendships (user_id, friend_id) VALUES (?, ?)', (sender_id, user_id))
+            
+        # İsteği sil (Kabul de olsa red de olsa listeden kalkmalı)
+        db.execute('DELETE FROM friend_requests WHERE id = ?', (request_id,))
+        db.commit()
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # Arkadaş Portföyü (Kıyaslama İçin)
 @app.route('/api/friends/portfolio/<int:friend_id>', methods=['GET'])
 def get_friend_portfolio_history(friend_id):
@@ -1385,6 +1476,84 @@ def get_friend_portfolio_history(friend_id):
         save_to_cache(cache_key, result)
         
     return jsonify(result)
+
+# Arkadaşın Portföy Dağılımı (Miktar Gizli, Sadece Yüzdelik)
+@app.route('/api/friends/holdings/<int:friend_id>', methods=['GET'])
+def get_friend_holdings(friend_id):
+    user_id = get_current_user_id()
+    db = get_db()
+    
+    # Arkadaşlık kontrolü
+    check = db.execute('SELECT 1 FROM friendships WHERE user_id = ? AND friend_id = ?', (user_id, friend_id)).fetchone()
+    if not check:
+        return jsonify({'error': 'Not friends'}), 403
+
+    try:
+        # İşlemleri çek
+        df = pd.read_sql_query("SELECT * FROM transactions WHERE user_id = ?", db, params=(friend_id,))
+        if df.empty:
+            return jsonify([])
+
+        # Sütun isimlerini düzelt
+        df.rename(columns={'total_cost': 'totalCost', 'total_commission': 'totalCommission'}, inplace=True)
+
+        # Miktarları topla
+        df['signed_quantity'] = df.apply(lambda x: x['quantity'] if x['type'] == 'BUY' else -x['quantity'], axis=1)
+        portfolio = df.groupby('symbol')['signed_quantity'].sum().reset_index()
+        portfolio = portfolio[portfolio['signed_quantity'] > 0] # Sadece elinde olanlar
+
+        if portfolio.empty:
+            return jsonify([])
+
+        symbols = portfolio['symbol'].tolist()
+        
+        # Güncel fiyatları çek (Allocation hesabı için)
+        prices = {}
+        try:
+            # Batch download (Son 1 günlük veri)
+            ticker_data = yf.download(symbols, period="1d", progress=False)['Close']
+            
+            # Tek hisse durumu (Series döner)
+            if len(symbols) == 1:
+                if not ticker_data.empty:
+                    prices[symbols[0]] = float(ticker_data.iloc[-1])
+            else:
+                # Çoklu hisse durumu (DataFrame döner)
+                if not ticker_data.empty:
+                    last_row = ticker_data.iloc[-1]
+                    for sym in symbols:
+                        # MultiIndex veya düz kolon kontrolü
+                        if sym in last_row:
+                            prices[sym] = float(last_row[sym])
+        except Exception as e:
+            print(f"Price fetch error: {e}")
+
+        holdings = []
+        total_value = 0
+        
+        for _, row in portfolio.iterrows():
+            sym = row['symbol']
+            qty = row['signed_quantity']
+            price = prices.get(sym, 0)
+            
+            value = qty * price
+            total_value += value
+            
+            holdings.append({'symbol': sym, 'value': value})
+            
+        # Yüzdeleri hesapla ve value'yu sil (Gizlilik)
+        result = []
+        for h in holdings:
+            allocation = (h['value'] / total_value * 100) if total_value > 0 else 0
+            result.append({'symbol': h['symbol'], 'allocation': round(allocation, 2)})
+            
+        # Yüzdeye göre sırala (Büyükten küçüğe)
+        result.sort(key=lambda x: x['allocation'], reverse=True)
+        return jsonify(result)
+
+    except Exception as e:
+        print(f"Friend Holdings Error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 # Akıllı Arama (Şirket İsminden Sembol Bulma)
 @app.route('/api/search', methods=['GET'])
