@@ -1545,12 +1545,17 @@ def respond_friend_request():
         return jsonify({'error': 'İstek bulunamadı.'}), 404
         
     sender_id = req['sender_id']
+    print(f"[FRIEND] Respond Request: {request_id}, Action: {action}, Sender: {sender_id}")
     
     try:
-        if action == 'accept':
+        if action and action.strip().lower() == 'accept':
             # Karşılıklı arkadaşlık ekle (Mutual Friendship)
-            db.execute('INSERT OR IGNORE INTO friendships (user_id, friend_id) VALUES (?, ?)', (user_id, sender_id))
-            db.execute('INSERT OR IGNORE INTO friendships (user_id, friend_id) VALUES (?, ?)', (sender_id, user_id))
+            if db.is_postgres:
+                db.execute('INSERT INTO friendships (user_id, friend_id) VALUES (?, ?) ON CONFLICT DO NOTHING', (user_id, sender_id))
+                db.execute('INSERT INTO friendships (user_id, friend_id) VALUES (?, ?) ON CONFLICT DO NOTHING', (sender_id, user_id))
+            else:
+                db.execute('INSERT OR IGNORE INTO friendships (user_id, friend_id) VALUES (?, ?)', (user_id, sender_id))
+                db.execute('INSERT OR IGNORE INTO friendships (user_id, friend_id) VALUES (?, ?)', (sender_id, user_id))
             
         # İsteği sil (Kabul de olsa red de olsa listeden kalkmalı)
         db.execute('DELETE FROM friend_requests WHERE id = ?', (request_id,))
