@@ -5,6 +5,7 @@ import { ThemeProvider, createTheme, styled, alpha } from '@mui/material/styles'
 import SearchIcon from '@mui/icons-material/Search';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import { Analytics } from '@vercel/analytics/react';
 
 // Context
 import { StocksProvider } from './context/StocksContext';
@@ -340,6 +341,7 @@ function App() {
             <Route path="*" element={<LoginView onLogin={handleLogin} />} />
           )}
         </Routes>
+        <Analytics />
       </StocksProvider>
     </ThemeProvider>
   );
