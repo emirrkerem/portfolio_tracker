@@ -3,6 +3,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
+import Avatar from '@mui/material/Avatar';
 import CircularProgress from '@mui/material/CircularProgress';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -784,37 +785,88 @@ export default function TargetView() {
           
           {/* Özet Kartları */}
           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <Paper sx={{ flex: 1, minWidth: 200, p: 3, borderRadius: 4, background: 'linear-gradient(135deg, #1a237e 0%, #0d47a1 100%)', color: 'white', position: 'relative', overflow: 'hidden' }}>
-                <Box sx={{ position: 'absolute', top: -10, right: -10, opacity: 0.1 }}><AttachMoneyIcon sx={{ fontSize: 100 }} /></Box>
-                <Typography variant="subtitle2" sx={{ opacity: 0.7, mb: 1 }}>End Balance</Typography>
-                <Typography variant="h4" fontWeight="bold">
-                    ${finalData.balance.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </Typography>
-                <Typography variant="caption" sx={{ opacity: 0.7, mt: 1, display: 'block' }}>
-                    {years} yıl sonundaki tahmini toplam değer.
+            {/* End Balance */}
+            <Paper sx={{ 
+              flex: 1, 
+              minWidth: 200, 
+              p: 3, 
+              borderRadius: 4, 
+              bgcolor: 'rgba(255,255,255,0.03)', 
+              border: '1px solid rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(20px)',
+              transition: 'transform 0.2s, border-color 0.2s',
+              '&:hover': { transform: 'translateY(-4px)', borderColor: 'rgba(255,255,255,0.2)' }
+            }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
+                    <Box>
+                        <Typography variant="subtitle2" sx={{ color: '#888', fontWeight: 600, letterSpacing: '0.5px', mb: 0.5, textTransform: 'uppercase' }}>Tahmini Birikim</Typography>
+                        <Typography variant="h5" fontWeight="bold" sx={{ color: 'white', wordBreak: 'break-word' }}>
+                            ${finalData.balance.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </Typography>
+                    </Box>
+                    <Avatar sx={{ bgcolor: 'rgba(41, 121, 255, 0.1)', color: '#2979ff', width: 48, height: 48 }}>
+                        <AttachMoneyIcon />
+                    </Avatar>
+                </Box>
+                <Typography variant="caption" sx={{ color: '#666' }}>
+                    {years} yıl sonundaki toplam değer
                 </Typography>
             </Paper>
 
-            <Paper sx={{ flex: 1, minWidth: 200, p: 3, borderRadius: 4, background: 'linear-gradient(135deg, #004d40 0%, #00695c 100%)', color: 'white', position: 'relative', overflow: 'hidden' }}>
-                <Box sx={{ position: 'absolute', top: -10, right: -10, opacity: 0.1 }}><TrendingUpIcon sx={{ fontSize: 100 }} /></Box>
-                <Typography variant="subtitle2" sx={{ opacity: 0.7, mb: 1 }}>Total Interest</Typography>
-                <Typography variant="h4" fontWeight="bold">
-                    ${finalData.interest.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </Typography>
-                <Typography variant="caption" sx={{ opacity: 0.7, mt: 1, display: 'block' }}>
-                    Toplam kazanılan bileşik faiz.
+            {/* Total Interest */}
+            <Paper sx={{ 
+              flex: 1, 
+              minWidth: 200, 
+              p: 3, 
+              borderRadius: 4, 
+              bgcolor: 'rgba(255,255,255,0.03)', 
+              border: '1px solid rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(20px)',
+              transition: 'transform 0.2s, border-color 0.2s',
+              '&:hover': { transform: 'translateY(-4px)', borderColor: 'rgba(255,255,255,0.2)' }
+            }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
+                    <Box>
+                        <Typography variant="subtitle2" sx={{ color: '#888', fontWeight: 600, letterSpacing: '0.5px', mb: 0.5, textTransform: 'uppercase' }}>Toplam Getiri</Typography>
+                        <Typography variant="h5" fontWeight="bold" sx={{ color: '#00e676', wordBreak: 'break-word' }}>
+                            +${finalData.interest.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </Typography>
+                    </Box>
+                    <Avatar sx={{ bgcolor: 'rgba(0, 230, 118, 0.1)', color: '#00e676', width: 48, height: 48 }}>
+                        <TrendingUpIcon />
+                    </Avatar>
+                </Box>
+                <Typography variant="caption" sx={{ color: '#666' }}>
+                    Kazanılan bileşik faiz tutarı
                 </Typography>
             </Paper>
 
-            <Paper sx={{ flex: 1, minWidth: 200, p: 3, borderRadius: 4, background: 'linear-gradient(135deg, #e65100 0%, #ef6c00 100%)', color: 'white', position: 'relative', overflow: 'hidden' }}>
-                <Box sx={{ position: 'absolute', top: -10, right: -10, opacity: 0.1 }}><DonutLargeIcon sx={{ fontSize: 100 }} /></Box>
-                <Typography variant="subtitle2" sx={{ opacity: 0.7, mb: 1 }}>Progress</Typography>
-                <Typography variant="h4" fontWeight="bold">
-                    %{progressPercentage.toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                </Typography>
-                <Typography variant="caption" sx={{ opacity: 0.7, mt: 1, display: 'block' }}>
-                    Hedefe ulaşma oranı.
-                </Typography>
+            {/* Progress */}
+            <Paper sx={{ 
+              flex: 1, 
+              minWidth: 200, 
+              p: 3, 
+              borderRadius: 4, 
+              bgcolor: 'rgba(255,255,255,0.03)', 
+              border: '1px solid rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(20px)',
+              transition: 'transform 0.2s, border-color 0.2s',
+              '&:hover': { transform: 'translateY(-4px)', borderColor: 'rgba(255,255,255,0.2)' }
+            }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
+                    <Box>
+                        <Typography variant="subtitle2" sx={{ color: '#888', fontWeight: 600, letterSpacing: '0.5px', mb: 0.5, textTransform: 'uppercase' }}>Hedef İlerlemesi</Typography>
+                        <Typography variant="h5" fontWeight="bold" sx={{ color: 'white', wordBreak: 'break-word' }}>
+                            %{progressPercentage.toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                        </Typography>
+                    </Box>
+                    <Avatar sx={{ bgcolor: 'rgba(255, 152, 0, 0.1)', color: '#ff9800', width: 48, height: 48 }}>
+                        <DonutLargeIcon />
+                    </Avatar>
+                </Box>
+                <Box sx={{ width: '100%', height: 4, bgcolor: 'rgba(255,255,255,0.1)', borderRadius: 2, mt: 1 }}>
+                    <Box sx={{ width: `${Math.min(progressPercentage, 100)}%`, height: '100%', bgcolor: '#ff9800', borderRadius: 2 }} />
+                </Box>
             </Paper>
           </Box>
 
