@@ -21,6 +21,9 @@ import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
 import ListItemAvatar from '@mui/material/ListItemAvatar';
 import Divider from '@mui/material/Divider';
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
+import CurrencyExchangeIcon from '@mui/icons-material/CurrencyExchange';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import WalletManager from '../../components/portfolio/WalletManager';
 import PortfolioHistoryChart from '../../components/portfolio/PortfolioHistoryChart';
@@ -61,6 +64,8 @@ export default function PortfolioView() {
   const [totalProfit, setTotalProfit] = useState(() => getCachedData('totalProfit', 0));
   const [recentTransactions, setRecentTransactions] = useState<any[]>(() => getCachedData('recentTransactions', []));
   const [allTransactions, setAllTransactions] = useState<any[]>(() => getCachedData('allTransactions', []));
+  const [showInTry, setShowInTry] = useState(false);
+  const [usdTryRate, setUsdTryRate] = useState(0);
 
   const fetchData = async () => {
     try {
@@ -84,12 +89,23 @@ export default function PortfolioView() {
         setAllTransactions(txData);
       }
 
-      if (Array.isArray(portfolioData) && portfolioData.length > 0) {
-        // 4. Güncel Fiyatları Çek
-        const symbols = portfolioData.map((p: any) => p.symbol).join(',');
-        const marketRes = await fetch(`${API_URL}/api/market?symbols=${symbols}`);
-        const marketData = await marketRes.json();
+      // 4. Güncel Fiyatları Çek (Portföy + USD/TRY)
+      // Portföydeki sembolleri al, TRY=X ekle (Tek istekte hepsini çekelim)
+      const portfolioSymbols = Array.isArray(portfolioData) ? portfolioData.map((p: any) => p.symbol) : [];
+      const uniqueSymbols = Array.from(new Set([...portfolioSymbols, 'TRY=X']));
+      
+      // Sembolleri encode et (TRY=X içindeki = işareti için önemli)
+      const query = uniqueSymbols.map(s => encodeURIComponent(s)).join(',');
+      const marketRes = await fetch(`${API_URL}/api/market?symbols=${query}`);
+      const marketData = await marketRes.json();
 
+      // Kur bilgisini güncelle
+      if (Array.isArray(marketData)) {
+        const tryData = marketData.find((m: any) => m.symbol === 'TRY=X');
+        if (tryData) setUsdTryRate(tryData.price);
+      }
+
+      if (Array.isArray(portfolioData) && portfolioData.length > 0) {
         let equity = 0;
         let profit = 0;
 
@@ -255,7 +271,25 @@ export default function PortfolioView() {
               <AttachMoneyIcon sx={{ fontSize: 120 }} />
             </Box>
             <Typography variant="subtitle2" sx={{ opacity: 0.7, mb: 1 }}>Toplam Varlık</Typography>
-            <Typography variant="h3" fontWeight="bold">${totalNetWorth.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
+            
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="h3" fontWeight="bold">
+                {showInTry 
+                  ? `₺${(totalNetWorth * usdTryRate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  : `$${totalNetWorth.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                }
+              </Typography>
+              <Tooltip title={showInTry ? "USD'ye Çevir" : "TL'ye Çevir"}>
+                <IconButton 
+                  onClick={() => setShowInTry(!showInTry)}
+                  size="small"
+                  sx={{ color: 'rgba(255,255,255,0.7)', bgcolor: 'rgba(255,255,255,0.1)', '&:hover': { color: 'white', bgcolor: 'rgba(255,255,255,0.2)' } }}
+                >
+                  <CurrencyExchangeIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
+
             <Box sx={{ display: 'flex', alignItems: 'center', mt: 1, gap: 1 }}>
               <Chip 
                 label={`${totalProfit >= 0 ? '+' : ''}${totalProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${totalProfitPercent.toFixed(2)}%)`} 
