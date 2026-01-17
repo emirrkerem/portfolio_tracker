@@ -23,7 +23,9 @@ import ListItemAvatar from '@mui/material/ListItemAvatar';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
+import Button from '@mui/material/Button';
 import CurrencyLiraIcon from '@mui/icons-material/CurrencyLira';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import WalletManager from '../../components/portfolio/WalletManager';
 import PortfolioHistoryChart from '../../components/portfolio/PortfolioHistoryChart';
@@ -443,36 +445,62 @@ export default function PortfolioView() {
 
           {/* Son İşlemler */}
           <Paper sx={{ p: 3, mt: 4, borderRadius: 4, bgcolor: '#000000', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>Son İşlemler</Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6" fontWeight="bold">Son İşlemler</Typography>
+              <Button 
+                endIcon={<ArrowForwardIcon />} 
+                onClick={() => navigate('/history')}
+                sx={{ textTransform: 'none', color: '#2979ff', fontSize: '0.85rem', '&:hover': { bgcolor: 'rgba(41, 121, 255, 0.1)' } }}
+              >
+                Tümünü Gör
+              </Button>
+            </Box>
             <List disablePadding>
               {recentTransactions.length === 0 ? (
                 <Typography variant="body2" sx={{ color: '#666', textAlign: 'center', py: 2 }}>İşlem yok.</Typography>
               ) : (
                 recentTransactions.map((tx, i) => (
                   <Box key={i}>
-                    <ListItem disablePadding sx={{ py: 1 }}>
+                    <ListItem disablePadding sx={{ py: 1.5 }}>
                       <ListItemAvatar>
-                        <Avatar sx={{ 
-                          background: tx.type === 'BUY' ? 'linear-gradient(135deg, #00e676 0%, #00c853 100%)' : 'linear-gradient(135deg, #ff1744 0%, #d50000 100%)',
-                          color: 'white',
-                          width: 36, height: 36,
-                          boxShadow: tx.type === 'BUY' ? '0 2px 8px rgba(0, 230, 118, 0.4)' : '0 2px 8px rgba(255, 23, 68, 0.4)'
-                        }}>
-                          {tx.type === 'BUY' ? <TrendingUpIcon fontSize="small" /> : <TrendingDownIcon fontSize="small" />}
-                        </Avatar>
+                        <Box sx={{ position: 'relative' }}>
+                          <Avatar 
+                            src={`${API_URL}/logos/${tx.symbol}.png`}
+                            sx={{ width: 42, height: 42, bgcolor: 'rgba(255,255,255,0.1)', fontSize: '0.8rem', border: '1px solid rgba(255,255,255,0.1)' }}
+                          >
+                            {tx.symbol.substring(0, 2)}
+                          </Avatar>
+                          <Box sx={{ 
+                            position: 'absolute', bottom: -2, right: -2, 
+                            bgcolor: tx.type === 'BUY' ? '#00c853' : '#d50000',
+                            borderRadius: '50%', width: 18, height: 18,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            border: '2px solid #000'
+                          }}>
+                            {tx.type === 'BUY' ? <TrendingUpIcon sx={{ fontSize: 12, color: 'white' }} /> : <TrendingDownIcon sx={{ fontSize: 12, color: 'white' }} />}
+                          </Box>
+                        </Box>
                       </ListItemAvatar>
                       <ListItemText 
                         primary={tx.symbol}
-                        secondary={new Date(tx.date).toLocaleDateString('tr-TR')}
+                        secondary={
+                          <Box component="span" sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            <Typography variant="caption" sx={{ color: '#888' }}>
+                              {new Date(tx.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: tx.type === 'BUY' ? '#00e676' : '#ff1744', fontWeight: 'bold', fontSize: '0.7rem', bgcolor: tx.type === 'BUY' ? 'rgba(0, 230, 118, 0.1)' : 'rgba(255, 23, 68, 0.1)', px: 0.8, py: 0.2, borderRadius: 1, width: 'fit-content' }}>
+                              {tx.type === 'BUY' ? 'ALIM' : 'SATIM'} @ ${Number(tx.price).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                            </Typography>
+                          </Box>
+                        }
                         primaryTypographyProps={{ fontWeight: 'bold', color: 'white' }}
-                        secondaryTypographyProps={{ variant: 'caption', color: '#888' }}
                       />
                       <Box sx={{ textAlign: 'right' }}>
-                        <Typography variant="body2" fontWeight="bold" sx={{ color: tx.type === 'BUY' ? '#00e676' : '#ff1744' }}>
-                          {tx.type === 'BUY' ? '+' : '-'}{tx.quantity}
+                        <Typography variant="body2" fontWeight="bold" sx={{ color: 'white' }}>
+                          ${(Number(tx.quantity) * Number(tx.price)).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </Typography>
                         <Typography variant="caption" sx={{ color: '#888' }}>
-                          ${Number(tx.price).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {tx.quantity} Adet
                         </Typography>
                       </Box>
                     </ListItem>
