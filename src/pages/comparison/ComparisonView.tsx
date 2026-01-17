@@ -342,34 +342,58 @@ export default function ComparisonView() {
 
       {/* Controls Section */}
       <Paper sx={{ 
-        p: 2, 
+        p: 3, 
         mb: 3, 
         borderRadius: 4, 
-        bgcolor: '#000000', 
-        border: '1px solid rgba(255,255,255,0.05)',
+        bgcolor: 'rgba(255,255,255,0.03)', 
+        border: '1px solid rgba(255,255,255,0.08)',
+        backdropFilter: 'blur(20px)',
+        position: 'relative',
+        overflow: 'hidden',
         display: 'flex',
+        flexDirection: { xs: 'column', xl: 'row' },
         justifyContent: 'space-between',
         alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: 2
+        gap: 3
       }}>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            <Typography sx={{ color: '#a0a0a0', fontWeight: 'bold' }}>Kıyasla:</Typography>
-            <Select
-                value={benchmarkType}
-                onChange={(e) => {
-                    const newType = e.target.value as 'INDEX' | 'FRIEND';
-                    setBenchmarkType(newType);
-                    if (newType === 'FRIEND') {
-                        setViewMode('return'); // Arkadaş seçilince otomatik yüzde moduna geç
-                    }
-                }}
-                size="small"
-                sx={{ color: 'white', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.2)' } }}
-            >
-                <MenuItem value="INDEX">Piyasa Endeksi</MenuItem>
-                <MenuItem value="FRIEND">Arkadaş</MenuItem>
-            </Select>
+        <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, #2979ff, #00e676)', opacity: 0.6 }} />
+
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', width: { xs: '100%', xl: 'auto' }, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(255,255,255,0.05)', p: 0.5, borderRadius: 3, border: '1px solid rgba(255,255,255,0.1)' }}>
+                <Button 
+                    onClick={() => setBenchmarkType('INDEX')}
+                    sx={{ 
+                        borderRadius: 2.5, 
+                        px: 3, 
+                        py: 1, 
+                        textTransform: 'none', 
+                        fontWeight: 'bold',
+                        color: benchmarkType === 'INDEX' ? 'white' : '#888',
+                        bgcolor: benchmarkType === 'INDEX' ? 'rgba(255,255,255,0.1)' : 'transparent',
+                        '&:hover': { bgcolor: benchmarkType === 'INDEX' ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)' }
+                    }}
+                >
+                    Piyasa Endeksi
+                </Button>
+                <Button 
+                    onClick={() => {
+                        setBenchmarkType('FRIEND');
+                        setViewMode('return');
+                    }}
+                    sx={{ 
+                        borderRadius: 2.5, 
+                        px: 3, 
+                        py: 1, 
+                        textTransform: 'none', 
+                        fontWeight: 'bold',
+                        color: benchmarkType === 'FRIEND' ? 'white' : '#888',
+                        bgcolor: benchmarkType === 'FRIEND' ? 'rgba(255,255,255,0.1)' : 'transparent',
+                        '&:hover': { bgcolor: benchmarkType === 'FRIEND' ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)' }
+                    }}
+                >
+                    Arkadaş
+                </Button>
+            </Box>
 
             {benchmarkType === 'FRIEND' && (
                 <Select
@@ -377,9 +401,20 @@ export default function ComparisonView() {
                     onChange={(e) => setSelectedFriendId(e.target.value)}
                     displayEmpty
                     size="small"
-                    sx={{ color: 'white', minWidth: 150, '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.2)' } }}
+                    variant="standard"
+                    disableUnderline
+                    sx={{ 
+                        color: 'white', 
+                        minWidth: 200, 
+                        bgcolor: 'rgba(255,255,255,0.05)', 
+                        px: 2, 
+                        py: 1, 
+                        borderRadius: 2,
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        '& .MuiSelect-icon': { color: 'white' }
+                    }}
                 >
-                    <MenuItem value="" disabled>Arkadaş Seç</MenuItem>
+                    <MenuItem value="" disabled>Arkadaş Seçiniz</MenuItem>
                     {friends.map(f => (
                         <MenuItem key={f.id} value={String(f.id)}>{f.username}</MenuItem>
                     ))}
@@ -388,58 +423,66 @@ export default function ComparisonView() {
         </Box>
 
         {benchmarkType === 'INDEX' && (
-        <>
-        <ToggleButtonGroup
-            value={BENCHMARKS.some(b => b.symbol === selectedBenchmark) ? selectedBenchmark : null}
-            exclusive
-            onChange={handleBenchmarkChange}
-            size="small"
-            sx={{ 
-              '& .MuiToggleButton-root': { 
-                color: '#a0a0a0',
-                border: '1px solid rgba(255,255,255,0.1)',
-                textTransform: 'none',
-                px: 3,
-                borderRadius: 2,
-                mr: 1,
-                '&.Mui-selected': { 
-                    color: 'white', 
-                    bgcolor: 'rgba(41, 121, 255, 0.1)',
-                    borderColor: 'rgba(41, 121, 255, 0.3)',
-                    fontWeight: 'bold'
-                },
-                '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' }
-              }
-            }}
-          >
-            {BENCHMARKS.map((b) => (
-              <ToggleButton key={b.symbol} value={b.symbol}>{b.name}</ToggleButton>
-            ))}
-        </ToggleButtonGroup>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', width: { xs: '100%', xl: 'auto' }, justifyContent: { xs: 'flex-start', xl: 'flex-end' } }}>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                {BENCHMARKS.map((b) => {
+                    const isSelected = selectedBenchmark === b.symbol;
+                    return (
+                        <Box 
+                            key={b.symbol} 
+                            onClick={(e) => handleBenchmarkChange(e as any, b.symbol)}
+                            sx={{ 
+                                px: 2, py: 1, 
+                                borderRadius: 2, 
+                                cursor: 'pointer', 
+                                fontSize: '0.85rem', 
+                                fontWeight: 'bold',
+                                bgcolor: isSelected ? 'rgba(41, 121, 255, 0.15)' : 'rgba(255,255,255,0.03)',
+                                color: isSelected ? '#2979ff' : '#888',
+                                border: '1px solid',
+                                borderColor: isSelected ? 'rgba(41, 121, 255, 0.3)' : 'rgba(255,255,255,0.05)',
+                                transition: 'all 0.2s',
+                                '&:hover': { 
+                                    bgcolor: isSelected ? 'rgba(41, 121, 255, 0.25)' : 'rgba(255,255,255,0.08)',
+                                    color: isSelected ? '#2979ff' : 'white'
+                                }
+                            }}
+                        >
+                            {b.name}
+                        </Box>
+                    );
+                })}
+            </Box>
 
-        <Box sx={{ display: 'flex', bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2, border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+            <Box sx={{ display: 'flex', bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2, border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden', height: 40 }}>
             <TextField
-              placeholder="Sembol (örn: NVDA)"
+              placeholder="Sembol Ara..."
               variant="standard"
-              size="small"
               value={customSymbol}
               onChange={(e) => setCustomSymbol(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleCustomSymbolSubmit()}
               InputProps={{
                 disableUnderline: true,
-                sx: { color: 'white', px: 2, py: 0.8, fontSize: '0.875rem' }
+                sx: { color: 'white', px: 2, height: '100%', fontSize: '0.9rem' }
               }}
-              sx={{ width: 150 }}
+              sx={{ width: 140 }}
             />
             <Button 
               onClick={handleCustomSymbolSubmit}
-              sx={{ color: '#a0a0a0', minWidth: 'auto', px: 2, borderLeft: '1px solid rgba(255,255,255,0.1)', borderRadius: 0, '&:hover': { color: 'white' } }}
+              sx={{ 
+                  color: '#a0a0a0', 
+                  minWidth: 'auto', 
+                  px: 2, 
+                  borderLeft: '1px solid rgba(255,255,255,0.1)', 
+                  borderRadius: 0, 
+                  '&:hover': { color: 'white', bgcolor: 'rgba(255,255,255,0.05)' } 
+              }}
             >
               Ara
             </Button>
           </Box>
-          </>
-          )}
+        </Box>
+        )}
       </Paper>
 
       <Paper sx={{ 
