@@ -1,5 +1,5 @@
 // c:\Users\emirk\Desktop\borsa-app-client\src\pages\dashboard\StockDetailView.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -71,6 +71,13 @@ export default function StockDetailView() {
   const [balanceErrorData, setBalanceErrorData] = useState({ cost: 0, balance: 0 });
   const [shareErrorOpen, setShareErrorOpen] = useState(false);
   const [shareErrorData, setShareErrorData] = useState({ required: 0, owned: 0 });
+
+  // Mevcut hisse adedini hesapla
+  const ownedQuantity = useMemo(() => {
+    return transactions.reduce((total, tx) => {
+      return total + (tx.type === 'BUY' ? Number(tx.quantity) : -Number(tx.quantity));
+    }, 0);
+  }, [transactions]);
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -515,7 +522,8 @@ export default function StockDetailView() {
             <Typography variant="h5" fontWeight="bold" sx={{ color: 'white' }}>${walletBalance.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'flex-start' }}>
+            <Box sx={{ flex: 1 }}>
             <TextField
               autoFocus
               label={unitType === 'SHARES' ? "Adet" : "Tutar ($)"}
@@ -583,6 +591,26 @@ export default function StockDetailView() {
                 '& input[type=number]::-webkit-inner-spin-button': { WebkitAppearance: 'none', margin: 0 },
               }}
             />
+            {transactionType === 'SELL' && (
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5, px: 0.5 }}>
+                <Typography 
+                  variant="caption" 
+                  onClick={() => {
+                    setUnitType('SHARES');
+                    setBuyQuantity(ownedQuantity.toString());
+                  }}
+                  sx={{ 
+                    color: '#2979ff', 
+                    cursor: 'pointer', 
+                    fontWeight: 'bold',
+                    '&:hover': { textDecoration: 'underline' }
+                  }}
+                >
+                  Tümünü Sat ({ownedQuantity.toLocaleString('tr-TR', { maximumFractionDigits: 4 })} Adet)
+                </Typography>
+              </Box>
+            )}
+            </Box>
             <FormControl variant="filled" sx={{ minWidth: 110 }}>
               <InputLabel sx={{ color: '#a0a0a0' }}>Birim</InputLabel>
               <Select
