@@ -23,7 +23,7 @@ import ListItemAvatar from '@mui/material/ListItemAvatar';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
-import CurrencyExchangeIcon from '@mui/icons-material/CurrencyExchange';
+import CurrencyLiraIcon from '@mui/icons-material/CurrencyLira';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import WalletManager from '../../components/portfolio/WalletManager';
 import PortfolioHistoryChart from '../../components/portfolio/PortfolioHistoryChart';
@@ -257,92 +257,115 @@ export default function PortfolioView() {
       </Typography>
 
       {/* Özet Kartları */}
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 4 }}>
-        <Box sx={{ flex: 1, minWidth: { xs: '100%', md: '300px' } }}>
-          <Paper sx={{ 
-            p: 3, 
-            borderRadius: 4, 
-            background: 'linear-gradient(135deg, #1a237e 0%, #0d47a1 100%)',
-            color: 'white',
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            <Box sx={{ position: 'absolute', top: -10, right: -10, opacity: 0.1 }}>
-              <AttachMoneyIcon sx={{ fontSize: 120 }} />
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 3, mb: 4 }}>
+        
+        {/* Toplam Varlık */}
+        <Paper sx={{ 
+          p: 3, 
+          borderRadius: 4, 
+          bgcolor: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          backdropFilter: 'blur(20px)',
+          transition: 'transform 0.2s, border-color 0.2s',
+          '&:hover': { transform: 'translateY(-4px)', borderColor: 'rgba(255,255,255,0.2)' }
+        }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+            <Box>
+              <Typography variant="subtitle2" sx={{ color: '#888', fontWeight: 600, letterSpacing: '0.5px', mb: 0.5 }}>TOPLAM VARLIK</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="h3" fontWeight="700" sx={{ background: 'linear-gradient(90deg, #fff, #ccc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                  {showInTry 
+                    ? `₺${(totalNetWorth * usdTryRate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    : `$${totalNetWorth.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  }
+                </Typography>
+                <Tooltip title={showInTry ? "USD'ye Çevir" : "TL'ye Çevir"}>
+                  <IconButton 
+                    onClick={() => setShowInTry(!showInTry)}
+                    size="small"
+                    sx={{ color: '#666', border: '1px solid rgba(255,255,255,0.1)', '&:hover': { color: 'white', borderColor: 'white' } }}
+                  >
+                    {showInTry ? <AttachMoneyIcon fontSize="small" /> : <CurrencyLiraIcon fontSize="small" />}
+                  </IconButton>
+                </Tooltip>
+              </Box>
             </Box>
-            <Typography variant="subtitle2" sx={{ opacity: 0.7, mb: 1 }}>Toplam Varlık</Typography>
-            
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography variant="h3" fontWeight="bold">
-                {showInTry 
-                  ? `₺${(totalNetWorth * usdTryRate).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                  : `$${totalNetWorth.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                }
+            <Avatar sx={{ bgcolor: 'rgba(41, 121, 255, 0.1)', color: '#2979ff', width: 48, height: 48 }}>
+              <AttachMoneyIcon />
+            </Avatar>
+          </Box>
+          
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              px: 1, py: 0.5, 
+              borderRadius: 1.5, 
+              bgcolor: totalProfit >= 0 ? 'rgba(0, 230, 118, 0.1)' : 'rgba(255, 23, 68, 0.1)',
+              color: totalProfit >= 0 ? '#00e676' : '#ff1744'
+            }}>
+              {totalProfit >= 0 ? <TrendingUpIcon sx={{ fontSize: 16, mr: 0.5 }} /> : <TrendingDownIcon sx={{ fontSize: 16, mr: 0.5 }} />}
+              <Typography variant="caption" fontWeight="bold">
+                {totalProfitPercent.toFixed(2)}%
               </Typography>
-              <Tooltip title={showInTry ? "USD'ye Çevir" : "TL'ye Çevir"}>
-                <IconButton 
-                  onClick={() => setShowInTry(!showInTry)}
-                  size="small"
-                  sx={{ color: 'rgba(255,255,255,0.7)', bgcolor: 'rgba(255,255,255,0.1)', '&:hover': { color: 'white', bgcolor: 'rgba(255,255,255,0.2)' } }}
-                >
-                  <CurrencyExchangeIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
             </Box>
+            <Typography variant="caption" sx={{ color: '#666' }}>
+              {totalProfit >= 0 ? '+' : ''}{totalProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (Tüm Zamanlar)
+            </Typography>
+          </Box>
+        </Paper>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', mt: 1, gap: 1 }}>
-              <Chip 
-                label={`${totalProfit >= 0 ? '+' : ''}${totalProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${totalProfitPercent.toFixed(2)}%)`} 
-                size="small"
-                sx={{ 
-                  background: totalProfit >= 0 ? 'linear-gradient(45deg, rgba(0, 230, 118, 0.2), rgba(0, 200, 83, 0.3))' : 'linear-gradient(45deg, rgba(255, 23, 68, 0.2), rgba(213, 0, 0, 0.3))',
-                  color: totalProfit >= 0 ? '#00e676' : '#ff1744',
-                  fontWeight: 'bold',
-                  boxShadow: totalProfit >= 0 ? '0 2px 8px rgba(0, 230, 118, 0.2)' : '0 2px 8px rgba(255, 23, 68, 0.2)',
-                  border: '1px solid',
-                  borderColor: totalProfit >= 0 ? 'rgba(0, 230, 118, 0.3)' : 'rgba(255, 23, 68, 0.3)'
-                }} 
-              />
-              <Typography variant="caption" sx={{ opacity: 0.7 }}>Tüm Zamanlar</Typography>
+        {/* Nakit Bakiye */}
+        <Paper sx={{ 
+          p: 3, 
+          borderRadius: 4, 
+          bgcolor: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          backdropFilter: 'blur(20px)',
+          transition: 'transform 0.2s, border-color 0.2s',
+          '&:hover': { transform: 'translateY(-4px)', borderColor: 'rgba(255,255,255,0.2)' }
+        }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+            <Box>
+              <Typography variant="subtitle2" sx={{ color: '#888', fontWeight: 600, letterSpacing: '0.5px', mb: 0.5 }}>NAKİT BAKİYE</Typography>
+              <Typography variant="h3" fontWeight="700" sx={{ color: 'white' }}>
+                ${walletBalance.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </Typography>
             </Box>
-          </Paper>
-        </Box>
+            <Avatar sx={{ bgcolor: 'rgba(0, 230, 118, 0.1)', color: '#00e676', width: 48, height: 48 }}>
+              <AccountBalanceWalletIcon />
+            </Avatar>
+          </Box>
+          <Typography variant="caption" sx={{ color: '#666' }}>
+            Kullanılabilir alım gücü (Buying Power)
+          </Typography>
+        </Paper>
 
-        <Box sx={{ flex: 1, minWidth: { xs: '100%', md: '300px' } }}>
-          <Paper sx={{ 
-            p: 3, 
-            borderRadius: 4, 
-            background: 'linear-gradient(135deg, #004d40 0%, #00695c 100%)',
-            color: 'white',
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            <Box sx={{ position: 'absolute', top: -10, right: -10, opacity: 0.1 }}>
-              <AccountBalanceWalletIcon sx={{ fontSize: 120 }} />
+        {/* Hisse Değeri */}
+        <Paper sx={{ 
+          p: 3, 
+          borderRadius: 4, 
+          bgcolor: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          backdropFilter: 'blur(20px)',
+          transition: 'transform 0.2s, border-color 0.2s',
+          '&:hover': { transform: 'translateY(-4px)', borderColor: 'rgba(255,255,255,0.2)' }
+        }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+            <Box>
+              <Typography variant="subtitle2" sx={{ color: '#888', fontWeight: 600, letterSpacing: '0.5px', mb: 0.5 }}>HİSSE SENEDİ DEĞERİ</Typography>
+              <Typography variant="h3" fontWeight="700" sx={{ color: 'white' }}>
+                ${totalEquity.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </Typography>
             </Box>
-            <Typography variant="subtitle2" sx={{ opacity: 0.7, mb: 1 }}>Nakit Bakiye (Buying Power)</Typography>
-            <Typography variant="h3" fontWeight="bold">${walletBalance.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
-            <Typography variant="caption" sx={{ opacity: 0.7, mt: 1, display: 'block' }}>Kullanılabilir Nakit</Typography>
-          </Paper>
-        </Box>
-
-        <Box sx={{ flex: 1, minWidth: { xs: '100%', md: '300px' } }}>
-          <Paper sx={{ 
-            p: 3, 
-            borderRadius: 4, 
-            background: 'linear-gradient(135deg, #311b92 0%, #4527a0 100%)',
-            color: 'white',
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            <Box sx={{ position: 'absolute', top: -10, right: -10, opacity: 0.1 }}>
-              <DonutLargeIcon sx={{ fontSize: 120 }} />
-            </Box>
-            <Typography variant="subtitle2" sx={{ opacity: 0.7, mb: 1 }}>Hisse Senedi Değeri</Typography>
-            <Typography variant="h3" fontWeight="bold">${totalEquity.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
-            <Typography variant="caption" sx={{ opacity: 0.7, mt: 1, display: 'block' }}>Aktif Yatırımlar</Typography>
-          </Paper>
-        </Box>
+            <Avatar sx={{ bgcolor: 'rgba(255, 152, 0, 0.1)', color: '#ff9800', width: 48, height: 48 }}>
+              <DonutLargeIcon />
+            </Avatar>
+          </Box>
+          <Typography variant="caption" sx={{ color: '#666' }}>
+            Portföydeki aktif yatırımların toplamı
+          </Typography>
+        </Paper>
       </Box>
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
