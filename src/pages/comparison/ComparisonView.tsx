@@ -10,6 +10,10 @@ import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
+import ClickAwayListener from '@mui/material/ClickAwayListener';
+import List from '@mui/material/List';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemText from '@mui/material/ListItemText';
 import { API_URL } from '../../config';
 
 const BENCHMARKS = [
@@ -32,6 +36,8 @@ export default function ComparisonView() {
   const [selectedRange, setSelectedRange] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [hoveredData, setHoveredData] = useState<any | null>(null);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [showResults, setShowResults] = useState(false);
 
   // 1. Portföy Verisini Çek
   useEffect(() => {
@@ -93,6 +99,27 @@ export default function ComparisonView() {
 
     fetchBenchmark();
   }, [portfolioData, selectedBenchmark, benchmarkType, selectedFriendId]);
+
+  // Arama Sonuçlarını Getir
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (customSymbol.length >= 1) {
+        fetch(`${API_URL}/api/search?q=${customSymbol}`)
+          .then(res => res.json())
+          .then(data => {
+            if (Array.isArray(data)) {
+              setSearchResults(data);
+              setShowResults(true);
+            }
+          })
+          .catch(err => console.error(err));
+      } else {
+        setSearchResults([]);
+        setShowResults(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [customSymbol]);
 
   // 3. Verileri Birleştir ve Yüzdelik/Kar Hesapla
   const fullChartData = useMemo(() => {
@@ -233,6 +260,14 @@ export default function ComparisonView() {
     }
   };
 
+  const handleResultClick = (symbol: string) => {
+    setSelectedBenchmark(symbol);
+    setBenchmarkType('INDEX');
+    setCustomSymbol(symbol);
+    setSearchResults([]);
+    setShowResults(false);
+  };
+
   const handleViewModeChange = (_: React.MouseEvent<HTMLElement>, newMode: 'return' | 'profit') => {
     if (newMode !== null) {
       // Arkadaş modundaysa ve profit seçilmeye çalışılıyorsa engelle
@@ -349,14 +384,15 @@ export default function ComparisonView() {
         border: '1px solid rgba(255,255,255,0.08)',
         backdropFilter: 'blur(20px)',
         position: 'relative',
-        overflow: 'hidden',
+        overflow: 'visible',
         display: 'flex',
         flexDirection: { xs: 'column', xl: 'row' },
         justifyContent: 'space-between',
         alignItems: 'center',
-        gap: 3
+        gap: 3,
+        zIndex: 20
       }}>
-        <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, #2979ff, #00e676)', opacity: 0.6 }} />
+        <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, #2979ff, #00e676)', opacity: 0.6, borderTopLeftRadius: 16, borderTopRightRadius: 16 }} />
 
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', width: { xs: '100%', xl: 'auto' }, flexWrap: 'wrap' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(255,255,255,0.05)', p: 0.5, borderRadius: 3, border: '1px solid rgba(255,255,255,0.1)' }}>
@@ -454,33 +490,88 @@ export default function ComparisonView() {
                 })}
             </Box>
 
-            <Box sx={{ display: 'flex', bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2, border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden', height: 40 }}>
-            <TextField
-              placeholder="Sembol Ara..."
-              variant="standard"
-              value={customSymbol}
-              onChange={(e) => setCustomSymbol(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleCustomSymbolSubmit()}
-              InputProps={{
-                disableUnderline: true,
-                sx: { color: 'white', px: 2, height: '100%', fontSize: '0.9rem' }
-              }}
-              sx={{ width: 140 }}
-            />
-            <Button 
-              onClick={handleCustomSymbolSubmit}
-              sx={{ 
-                  color: '#a0a0a0', 
-                  minWidth: 'auto', 
-                  px: 2, 
-                  borderLeft: '1px solid rgba(255,255,255,0.1)', 
-                  borderRadius: 0, 
-                  '&:hover': { color: 'white', bgcolor: 'rgba(255,255,255,0.05)' } 
-              }}
-            >
-              Ara
-            </Button>
-          </Box>
+            <ClickAwayListener onClickAway={() => setShowResults(false)}>
+                <Box sx={{ position: 'relative' }}>
+                    <Box sx={{ display: 'flex', bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2, border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden', height: 40 }}>
+                        <TextField
+                        placeholder="Sembol Ara..."
+                        variant="standard"
+                        value={customSymbol}
+                        onChange={(e) => setCustomSymbol(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleCustomSymbolSubmit()}
+                        onFocus={() => { if (searchResults.length > 0) setShowResults(true); }}
+                        InputProps={{
+                            disableUnderline: true,
+                            sx: { color: 'white', px: 2, height: '100%', fontSize: '0.9rem' }
+                        }}
+                        sx={{ width: 140 }}
+                        />
+                        <Button 
+                        onClick={handleCustomSymbolSubmit}
+                        sx={{ 
+                            color: '#a0a0a0', 
+                            minWidth: 'auto', 
+                            px: 2, 
+                            borderLeft: '1px solid rgba(255,255,255,0.1)', 
+                            borderRadius: 0, 
+                            '&:hover': { color: 'white', bgcolor: 'rgba(255,255,255,0.05)' } 
+                        }}
+                        >
+                        Ara
+                        </Button>
+                    </Box>
+                    {showResults && searchResults.length > 0 && (
+                        <Paper sx={{
+                            position: 'absolute',
+                            top: '100%',
+                            left: 0,
+                            right: 0,
+                            mt: 1,
+                            bgcolor: '#1e1e1e',
+                            color: 'white',
+                            zIndex: 9999,
+                            maxHeight: 300,
+                            overflowY: 'auto',
+                            borderRadius: 2,
+                            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                            border: '1px solid rgba(255,255,255,0.1)'
+                        }}>
+                            <List disablePadding>
+                                {searchResults.map((item) => (
+                                    <ListItemButton 
+                                        key={item.symbol} 
+                                        onClick={() => handleResultClick(item.symbol)}
+                                        sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}
+                                    >
+                                        <ListItemText 
+                                            primary={
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                    {item.symbol}
+                                                    <Box component="span" sx={{ 
+                                                        fontSize: '0.65rem', 
+                                                        px: 0.8, 
+                                                        py: 0.2,
+                                                        borderRadius: 1,
+                                                        bgcolor: item.type === 'ETF' ? 'rgba(255, 152, 0, 0.15)' : 'rgba(33, 150, 243, 0.15)',
+                                                        color: item.type === 'ETF' ? '#ff9800' : '#2196f3',
+                                                        border: '1px solid',
+                                                        borderColor: item.type === 'ETF' ? 'rgba(255, 152, 0, 0.3)' : 'rgba(33, 150, 243, 0.3)'
+                                                    }}>
+                                                        {item.type === 'EQUITY' ? 'STOCK' : item.type}
+                                                    </Box>
+                                                </Box>
+                                            }
+                                            secondary={item.name}
+                                            primaryTypographyProps={{ fontWeight: 'bold', component: 'div' }}
+                                            secondaryTypographyProps={{ sx: { color: '#a0a0a0' } }}
+                                        />
+                                    </ListItemButton>
+                                ))}
+                            </List>
+                        </Paper>
+                    )}
+                </Box>
+            </ClickAwayListener>
         </Box>
         )}
       </Paper>
