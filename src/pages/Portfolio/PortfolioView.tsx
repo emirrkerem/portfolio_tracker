@@ -79,6 +79,14 @@ export default function PortfolioView() {
       const walletRes = await fetch(`${API_URL}/api/wallet`, { headers });
       const walletData = await walletRes.json();
       setWalletBalance(walletData.balance || 0);
+      
+      // Toplam Yatırılanı Hesapla (Sadece DEPOSIT)
+      let totalDeposits = 0;
+      if (Array.isArray(walletData.transactions)) {
+        walletData.transactions.forEach((tx: any) => {
+          if (tx.type === 'DEPOSIT') totalDeposits += Number(tx.amount);
+        });
+      }
 
       // 2. Portföy Hisseleri
       const portfolioRes = await fetch(`${API_URL}/api/portfolio`, { headers });
@@ -110,7 +118,6 @@ export default function PortfolioView() {
 
       if (Array.isArray(portfolioData) && portfolioData.length > 0) {
         let equity = 0;
-        let profit = 0;
 
         const updatedPortfolio = portfolioData.map((item: any) => {
           const marketItem = Array.isArray(marketData) ? marketData.find((m: any) => m.symbol === item.symbol) : null;
@@ -120,7 +127,6 @@ export default function PortfolioView() {
           const itemProfitPercent = item.totalCost > 0 ? (itemProfit / item.totalCost) * 100 : 0;
 
           equity += currentValue;
-          profit += itemProfit;
 
           return {
             ...item,
@@ -133,14 +139,17 @@ export default function PortfolioView() {
 
         setPortfolio(updatedPortfolio);
         setTotalEquity(equity);
-        setTotalProfit(profit);
+        
+        // Hesaplama: (Hisse Değeri + Nakit) - (Toplam Yatırılan)
+        const currentNetWorth = equity + (walletData.balance || 0);
+        setTotalProfit(currentNetWorth - totalDeposits);
 
         // Cache'i Güncelle
         const cacheData = {
           portfolio: updatedPortfolio,
           walletBalance: walletData.balance || 0,
           totalEquity: equity,
-          totalProfit: profit,
+          totalProfit: currentNetWorth - totalDeposits,
           recentTransactions: Array.isArray(txData) ? txData.slice(0, 5) : [],
           allTransactions: Array.isArray(txData) ? txData : []
         };
@@ -148,14 +157,16 @@ export default function PortfolioView() {
       } else {
         setPortfolio([]);
         setTotalEquity(0);
-        setTotalProfit(0);
+        
+        const currentNetWorth = walletData.balance || 0;
+        setTotalProfit(currentNetWorth - totalDeposits);
         
         // Veri bos olsa bile cache'i guncelle (Eski verilerin kalmasini onle)
         const cacheData = {
           portfolio: [],
           walletBalance: walletData.balance || 0,
           totalEquity: 0,
-          totalProfit: 0,
+          totalProfit: currentNetWorth - totalDeposits,
           recentTransactions: Array.isArray(txData) ? txData.slice(0, 5) : [],
           allTransactions: Array.isArray(txData) ? txData : []
         };
@@ -174,7 +185,6 @@ export default function PortfolioView() {
   }, []);
 
   const totalNetWorth = totalEquity + walletBalance;
-  const totalProfitPercent = (totalNetWorth - (totalNetWorth - totalProfit)) / (totalNetWorth - totalProfit) * 100 || 0;
 
   // Pasta Grafik Verisi
   const pieData = [
@@ -301,21 +311,8 @@ export default function PortfolioView() {
           </Box>
           
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              px: 1, py: 0.5, 
-              borderRadius: 1.5, 
-              bgcolor: totalProfit >= 0 ? 'rgba(0, 230, 118, 0.1)' : 'rgba(255, 23, 68, 0.1)',
-              color: totalProfit >= 0 ? '#00e676' : '#ff1744'
-            }}>
-              {totalProfit >= 0 ? <TrendingUpIcon sx={{ fontSize: 16, mr: 0.5 }} /> : <TrendingDownIcon sx={{ fontSize: 16, mr: 0.5 }} />}
-              <Typography variant="caption" fontWeight="bold">
-                {totalProfitPercent.toFixed(2)}%
-              </Typography>
-            </Box>
-            <Typography variant="caption" sx={{ color: '#666' }}>
-              {totalProfit >= 0 ? '+' : ''}{totalProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (Tüm Zamanlar)
+            <Typography variant="h6" fontWeight="bold" sx={{ color: totalProfit >= 0 ? '#00e676' : '#ff1744' }}>
+              {totalProfit >= 0 ? '+' : ''}{totalProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </Typography>
           </Box>
         </Paper>
