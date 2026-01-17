@@ -592,13 +592,30 @@ export default function DashboardView() {
   };
 
   const handleRequestSort = (property: string) => {
+    // Market Cap (Varsayılan) sütunu için özel toggle mantığı (Sadece yön değiştir)
+    if (property === 'cap') {
+      if (sortConfig.key === 'cap' && sortConfig.direction === 'desc') {
+        setSortConfig({ key: 'cap', direction: 'asc' });
+      } else {
+        setSortConfig({ key: 'cap', direction: 'desc' });
+      }
+      return;
+    }
+
+    // Diğer sütunlar için 3 aşamalı mantık: Asc -> Desc -> Varsayılan (Cap Desc)
     let direction: 'asc' | 'desc' | undefined = 'asc';
     if (sortConfig.key === property && sortConfig.direction === 'asc') {
       direction = 'desc';
     } else if (sortConfig.key === property && sortConfig.direction === 'desc') {
       direction = undefined;
     }
-    setSortConfig({ key: direction ? property : null, direction });
+    
+    if (direction) {
+      setSortConfig({ key: property, direction });
+    } else {
+      // 3. Tıklamada varsayılana dön: Market Cap (Büyükten Küçüğe)
+      setSortConfig({ key: 'cap', direction: 'desc' });
+    }
   };
 
   // Yeni Hisse Ekleme Fonksiyonu
