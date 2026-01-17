@@ -64,7 +64,7 @@ export default function Sidebar() {
     localStorage.removeItem('portfolio_view_cache');
     localStorage.removeItem('target_view_cache');
     // Sayfayı yenile (App.tsx state'i sıfırlanır ve Login'e atar)
-    window.location.href = '/login';
+    window.location.href = '/';
   };
 
   return (
