@@ -181,6 +181,8 @@ export default function PortfolioView() {
     { name: 'Nakit (Cash)', value: walletBalance }
   ].filter(i => i.value > 0);
 
+  const totalPieValue = pieData.reduce((sum, item) => sum + item.value, 0);
+
   // En İyi ve En Kötü Performansı Hesapla
   // Hem açık pozisyonları (portfolio) hem de kapanmış işlemleri (allTransactions üzerinden FIFO ile) değerlendirir.
   const { bestPerformer, worstPerformer } = useMemo(() => {
@@ -516,41 +518,76 @@ export default function PortfolioView() {
         <Box sx={{ flex: { xs: '1 1 100%', lg: 1 }, minWidth: 0 }}>
           {/* Varlık Dağılımı */}
           <Paper sx={{ p: 3, mb: 4, borderRadius: 4, bgcolor: '#000000', border: '1px solid rgba(255,255,255,0.05)', minHeight: 300 }}>
-            <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>Varlık Dağılımı</Typography>
-            <Box sx={{ height: 250, width: '100%' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {pieData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="none" />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip 
-                    contentStyle={{ backgroundColor: '#1e1e1e', border: 'none', borderRadius: '8px' }}
-                    itemStyle={{ color: 'white' }}
-                    formatter={(value: number) => `$${value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </Box>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center', mt: 2 }}>
-              {pieData.map((entry, index) => (
-                <Chip 
-                  key={entry.name} 
-                  label={entry.name} 
-                  size="small" 
-                  sx={{ bgcolor: COLORS[index % COLORS.length], color: 'white', fontWeight: 'bold' }} 
-                />
-              ))}
-            </Box>
+            <Typography variant="h6" fontWeight="bold" sx={{ mb: 3 }}>Varlık Dağılımı</Typography>
+            
+            {pieData.length > 0 ? (
+              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'column', xl: 'row' }, alignItems: 'center', gap: 4 }}>
+                {/* Grafik */}
+                <Box sx={{ position: 'relative', height: 260, width: 260, display: 'flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={80}
+                        outerRadius={100}
+                        paddingAngle={4}
+                        dataKey="value"
+                        stroke="none"
+                      >
+                        {pieData.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip 
+                        contentStyle={{ backgroundColor: 'rgba(20,20,20,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
+                        itemStyle={{ color: 'white', fontWeight: 'bold' }}
+                        formatter={(value: number) => [`$${value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Tutar']}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  {/* Ortadaki Toplam Değer */}
+                  <Box sx={{ position: 'absolute', textAlign: 'center', pointerEvents: 'none' }}>
+                    <Typography variant="caption" sx={{ color: '#888', display: 'block' }}>Toplam</Typography>
+                    <Typography variant="h6" fontWeight="bold" sx={{ color: 'white' }}>
+                      ${totalPieValue.toLocaleString('tr-TR', { notation: "compact", maximumFractionDigits: 1 })}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* Detaylı Liste */}
+                <Box sx={{ flex: 1, width: '100%', maxHeight: 300, overflowY: 'auto', pr: 1 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {pieData.map((entry, index) => {
+                      const percent = totalPieValue > 0 ? (entry.value / totalPieValue) * 100 : 0;
+                      return (
+                        <Box key={entry.name} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1.5, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.03)', transition: 'all 0.2s', '&:hover': { bgcolor: 'rgba(255,255,255,0.05)', transform: 'translateX(4px)' } }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Box sx={{ width: 12, height: 12, borderRadius: '4px', bgcolor: COLORS[index % COLORS.length], boxShadow: `0 0 8px ${COLORS[index % COLORS.length]}` }} />
+                            <Box>
+                              <Typography variant="body2" fontWeight="bold">{entry.name}</Typography>
+                              <Box sx={{ width: '100%', height: 4, bgcolor: 'rgba(255,255,255,0.1)', borderRadius: 2, mt: 0.5, minWidth: 60 }}>
+                                <Box sx={{ width: `${percent}%`, height: '100%', bgcolor: COLORS[index % COLORS.length], borderRadius: 2 }} />
+                              </Box>
+                            </Box>
+                          </Box>
+                          <Box sx={{ textAlign: 'right' }}>
+                            <Typography variant="body2" fontWeight="bold">${entry.value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
+                            <Typography variant="caption" sx={{ color: '#888' }}>{percent.toFixed(1)}%</Typography>
+                          </Box>
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                </Box>
+              </Box>
+            ) : (
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 250, color: '#666' }}>
+                <DonutLargeIcon sx={{ fontSize: 64, mb: 2, opacity: 0.2 }} />
+                <Typography>Görüntülenecek varlık bulunamadı.</Typography>
+              </Box>
+            )}
           </Paper>
 
           {/* Performans Özeti (Öne Çıkanlar) */}
