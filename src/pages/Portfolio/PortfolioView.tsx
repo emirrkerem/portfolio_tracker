@@ -68,6 +68,7 @@ export default function PortfolioView() {
   const [allTransactions, setAllTransactions] = useState<any[]>(() => getCachedData('allTransactions', []));
   const [showInTry, setShowInTry] = useState(false);
   const [usdTryRate, setUsdTryRate] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(-1);
 
   const fetchData = async () => {
     try {
@@ -535,9 +536,17 @@ export default function PortfolioView() {
                         paddingAngle={4}
                         dataKey="value"
                         stroke="none"
+                        onMouseEnter={(_, index) => setActiveIndex(index)}
+                        onMouseLeave={() => setActiveIndex(-1)}
                       >
                         {pieData.map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={COLORS[index % COLORS.length]} 
+                            opacity={activeIndex === -1 || activeIndex === index ? 1 : 0.3}
+                            stroke={activeIndex === index ? 'rgba(255,255,255,0.2)' : 'none'}
+                            strokeWidth={activeIndex === index ? 2 : 0}
+                          />
                         ))}
                       </Pie>
                       <RechartsTooltip 
@@ -547,12 +556,24 @@ export default function PortfolioView() {
                       />
                     </PieChart>
                   </ResponsiveContainer>
-                  {/* Ortadaki Toplam Değer */}
-                  <Box sx={{ position: 'absolute', textAlign: 'center', pointerEvents: 'none' }}>
-                    <Typography variant="caption" sx={{ color: '#888', display: 'block' }}>Toplam</Typography>
-                    <Typography variant="h6" fontWeight="bold" sx={{ color: 'white' }}>
-                      ${totalPieValue.toLocaleString('tr-TR', { notation: "compact", maximumFractionDigits: 1 })}
+                  {/* Ortadaki Dinamik Değer */}
+                  <Box sx={{ position: 'absolute', textAlign: 'center', pointerEvents: 'none', width: 160 }}>
+                    <Typography variant="caption" sx={{ color: '#888', display: 'block', mb: 0.5, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                      {activeIndex >= 0 ? pieData[activeIndex].name : 'TOPLAM VARLIK'}
                     </Typography>
+                    <Typography variant="h5" fontWeight="bold" sx={{ color: 'white', fontSize: activeIndex >= 0 ? '1.2rem' : '1.5rem' }}>
+                      {activeIndex >= 0 
+                        ? `$${pieData[activeIndex].value.toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+                        : `$${totalPieValue.toLocaleString('tr-TR', { notation: "compact", maximumFractionDigits: 1 })}`
+                      }
+                    </Typography>
+                    {activeIndex >= 0 && (
+                      <Chip 
+                        label={`${((pieData[activeIndex].value / totalPieValue) * 100).toFixed(1)}%`} 
+                        size="small" 
+                        sx={{ mt: 0.5, height: 20, fontSize: '0.7rem', fontWeight: 'bold', bgcolor: COLORS[activeIndex % COLORS.length], color: 'white' }} 
+                      />
+                    )}
                   </Box>
                 </Box>
 
@@ -561,19 +582,34 @@ export default function PortfolioView() {
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                     {pieData.map((entry, index) => {
                       const percent = totalPieValue > 0 ? (entry.value / totalPieValue) * 100 : 0;
+                      const isActive = activeIndex === index;
                       return (
-                        <Box key={entry.name} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1.5, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.03)', transition: 'all 0.2s', '&:hover': { bgcolor: 'rgba(255,255,255,0.05)', transform: 'translateX(4px)' } }}>
+                        <Box 
+                          key={entry.name} 
+                          onMouseEnter={() => setActiveIndex(index)}
+                          onMouseLeave={() => setActiveIndex(-1)}
+                          sx={{ 
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
+                            p: 1.5, borderRadius: 2, 
+                            bgcolor: isActive ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.02)', 
+                            border: '1px solid',
+                            borderColor: isActive ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)',
+                            transition: 'all 0.2s', 
+                            transform: isActive ? 'translateX(4px)' : 'none',
+                            cursor: 'default'
+                          }}
+                        >
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                             <Box sx={{ width: 12, height: 12, borderRadius: '4px', bgcolor: COLORS[index % COLORS.length], boxShadow: `0 0 8px ${COLORS[index % COLORS.length]}` }} />
                             <Box>
-                              <Typography variant="body2" fontWeight="bold">{entry.name}</Typography>
+                              <Typography variant="body2" fontWeight="bold" sx={{ color: isActive ? 'white' : '#e0e0e0' }}>{entry.name}</Typography>
                               <Box sx={{ width: '100%', height: 4, bgcolor: 'rgba(255,255,255,0.1)', borderRadius: 2, mt: 0.5, minWidth: 60 }}>
                                 <Box sx={{ width: `${percent}%`, height: '100%', bgcolor: COLORS[index % COLORS.length], borderRadius: 2 }} />
                               </Box>
                             </Box>
                           </Box>
                           <Box sx={{ textAlign: 'right' }}>
-                            <Typography variant="body2" fontWeight="bold">${entry.value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
+                            <Typography variant="body2" fontWeight="bold" sx={{ color: isActive ? 'white' : '#e0e0e0' }}>${entry.value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
                             <Typography variant="caption" sx={{ color: '#888' }}>{percent.toFixed(1)}%</Typography>
                           </Box>
                         </Box>
