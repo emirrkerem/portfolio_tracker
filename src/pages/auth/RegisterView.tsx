@@ -11,6 +11,7 @@ import { API_URL } from '../../config';
 
 export default function RegisterView() {
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -27,7 +28,7 @@ export default function RegisterView() {
       const res = await fetch(`${API_URL}/api/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, email, password })
       });
       const data = await res.json();
 
@@ -66,6 +67,15 @@ export default function RegisterView() {
             variant="filled"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
+            sx={{ mb: 2, '& .MuiFilledInput-root': { bgcolor: 'rgba(255,255,255,0.05)', color: 'white' }, '& .MuiInputLabel-root': { color: '#888' } }}
+          />
+          <TextField
+            label="E-posta"
+            type="email"
+            fullWidth
+            variant="filled"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             sx={{ mb: 2, '& .MuiFilledInput-root': { bgcolor: 'rgba(255,255,255,0.05)', color: 'white' }, '& .MuiInputLabel-root': { color: '#888' } }}
           />
           <TextField

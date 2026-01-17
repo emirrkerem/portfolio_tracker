@@ -37,6 +37,7 @@ interface StockData {
   pctChange: number;
   cap?: string;
   ytd?: string;
+  ytdRaw?: number;
   logo?: string;
   currency?: string;
 }
@@ -287,7 +288,8 @@ export default function DashboardView() {
                 change: marketData.change,
                 pctChange: marketData.pctChange,
                 cap: marketData.cap,
-                ytd: marketData.ytd
+                ytd: marketData.ytd,
+                ytdRaw: marketData.ytdRaw
               };
             }
             // Yeni veri yoksa (veya çekilemediyse) eskisini koru, 0 yapma
@@ -370,7 +372,8 @@ export default function DashboardView() {
                   change: marketData.change,
                   pctChange: marketData.pctChange,
                   cap: marketData.cap,
-                  ytd: marketData.ytd
+                  ytd: marketData.ytd,
+                  ytdRaw: marketData.ytdRaw
                 };
               }
               return etf;
@@ -431,7 +434,8 @@ export default function DashboardView() {
                   change: marketData.change,
                   pctChange: marketData.pctChange,
                   cap: marketData.cap,
-                  ytd: marketData.ytd
+                  ytd: marketData.ytd,
+                  ytdRaw: marketData.ytdRaw
                 };
               }
               return item;
@@ -492,7 +496,8 @@ export default function DashboardView() {
                   change: marketData.change,
                   pctChange: marketData.pctChange,
                   cap: marketData.cap,
-                  ytd: marketData.ytd
+                  ytd: marketData.ytd,
+                  ytdRaw: marketData.ytdRaw
                 };
               }
               return coin;
@@ -623,7 +628,8 @@ export default function DashboardView() {
           change: newStockData.change,
           pctChange: newStockData.pctChange,
           cap: newStockData.cap,
-          ytd: newStockData.ytd
+          ytd: newStockData.ytd,
+          ytdRaw: newStockData.ytdRaw
         };
         
         // Listeye ekle (En başa)
@@ -667,10 +673,14 @@ export default function DashboardView() {
         if (sortConfig.key === 'cap') {
           aValue = parseCapValue(a.cap);
           bValue = parseCapValue(b.cap);
+        } else if (sortConfig.key === 'ytd') {
+          // ytdRaw yoksa string'den parse et (Cache uyumluluğu için)
+          aValue = a.ytdRaw ?? (a.ytd && a.ytd !== 'N/A' ? parseFloat(a.ytd.replace('%', '')) : -Infinity);
+          bValue = b.ytdRaw ?? (b.ytd && b.ytd !== 'N/A' ? parseFloat(b.ytd.replace('%', '')) : -Infinity);
         }
 
         if (typeof aValue === 'string' && typeof bValue === 'string') {
-          return aValue.localeCompare(bValue);
+          return aValue.localeCompare(bValue) * (sortConfig.direction === 'asc' ? 1 : -1);
         }
         if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
         if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
