@@ -546,11 +546,6 @@ export default function PortfolioView() {
                           />
                         ))}
                       </Pie>
-                      <RechartsTooltip 
-                        contentStyle={{ backgroundColor: 'rgba(20,20,20,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
-                        itemStyle={{ color: 'white', fontWeight: 'bold' }}
-                        formatter={(value: number) => [`$${value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Tutar']}
-                      />
                     </PieChart>
                   </ResponsiveContainer>
                   {/* Ortadaki Dinamik Değer */}
