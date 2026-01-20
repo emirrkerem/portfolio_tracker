@@ -294,10 +294,10 @@ export default function PortfolioHistoryChart() {
               component="span" 
               variant="h6" 
               fontWeight="bold" 
-              sx={{ color: displayTwr >= 0 ? '#00C805' : '#FF3B30', ml: 2 }}
+              sx={{ color: (viewMode === 'value' ? totalProfit : displayTwr) >= 0 ? '#00C805' : '#FF3B30', ml: 2 }}
             >
               {viewMode === 'value' ? (
-                null
+                <>{totalProfit >= 0 ? '+' : ''}${totalProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</>
               ) : (
                 <>({displayTwr >= 0 ? '+' : ''}{displayTwr.toFixed(2)}%)</>
               )}
