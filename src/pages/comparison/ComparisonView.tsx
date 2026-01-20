@@ -24,11 +24,13 @@ const BENCHMARKS = [
   { symbol: 'GC=F', name: 'Gold' }
 ];
 
+const BENCHMARK_COLORS = ['#2196f3', '#ff9800', '#9c27b0', '#00bcd4', '#e91e63', '#ffeb3b'];
+
 export default function ComparisonView() {
   const [portfolioData, setPortfolioData] = useState<any[]>([]);
-  const [benchmarkData, setBenchmarkData] = useState<any[]>([]);
+  const [benchmarkDataMap, setBenchmarkDataMap] = useState<Record<string, any[]>>({});
   const [benchmarkType, setBenchmarkType] = useState<'INDEX' | 'FRIEND'>('INDEX');
-  const [selectedBenchmark, setSelectedBenchmark] = useState('SPY');
+  const [selectedBenchmarks, setSelectedBenchmarks] = useState<string[]>(['SPY']);
   const [selectedFriendId, setSelectedFriendId] = useState<string>('');
   const [friends, setFriends] = useState<any[]>([]);
   const [customSymbol, setCustomSymbol] = useState('');
@@ -70,15 +72,25 @@ export default function ComparisonView() {
         return;
     }
 
-    const fetchBenchmark = async () => {
+    const fetchBenchmarks = async () => {
       setLoading(true);
       try {
         if (benchmarkType === 'INDEX') {
             const startDate = portfolioData[0].date;
             const endDate = new Date().toISOString().split('T')[0];
-            const res = await fetch(`${API_URL}/api/stock?symbol=${selectedBenchmark}&start=${startDate}&end=${endDate}&interval=1d`);
-            const data = await res.json();
-            if (Array.isArray(data)) setBenchmarkData(data);
+            
+            // Seçili tüm benchmarkları çek
+            const promises = selectedBenchmarks.map(async (sym) => {
+                const res = await fetch(`${API_URL}/api/stock?symbol=${sym}&start=${startDate}&end=${endDate}&interval=1d`);
+                const data = await res.json();
+                return { symbol: sym, data: Array.isArray(data) ? data : [] };
+            });
+
+            const results = await Promise.all(promises);
+            const newMap: Record<string, any[]> = {};
+            results.forEach(r => newMap[r.symbol] = r.data);
+            setBenchmarkDataMap(newMap);
+
         } else if (benchmarkType === 'FRIEND' && selectedFriendId) {
             const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
             const headers = { 'X-User-ID': String(user.id || '1') };
@@ -87,7 +99,7 @@ export default function ComparisonView() {
             // Arkadaş verisi {date, value, invested} formatında gelir, bunu {date, price} formatına çevirelim
             if (Array.isArray(data)) {
                 const formatted = data.map(d => ({ date: d.date, price: d.value })); // Fiyat yerine toplam değer kullanıyoruz
-                setBenchmarkData(formatted);
+                setBenchmarkDataMap({ [selectedFriendId]: formatted });
             }
         }
       } catch (err) {
@@ -97,8 +109,8 @@ export default function ComparisonView() {
       }
     };
 
-    fetchBenchmark();
-  }, [portfolioData, selectedBenchmark, benchmarkType, selectedFriendId]);
+    fetchBenchmarks();
+  }, [portfolioData, selectedBenchmarks, benchmarkType, selectedFriendId]);
 
   // Arama Sonuçlarını Getir
   useEffect(() => {
@@ -123,7 +135,7 @@ export default function ComparisonView() {
 
   // 3. Verileri Birleştir ve Yüzdelik/Kar Hesapla
   const fullChartData = useMemo(() => {
-    if (portfolioData.length === 0 || benchmarkData.length === 0) return [];
+    if (portfolioData.length === 0) return [];
 
     // Gelecek tarihli verileri filtrele (Hatalı işlem girişlerini önlemek için)
     const today = new Date();
@@ -132,53 +144,38 @@ export default function ComparisonView() {
 
     if (validPortfolioData.length === 0) return [];
 
-    // Benchmark verisini tarih bazlı map'e çevir (Hızlı erişim için)
-    const benchmarkMap = new Map();
-    benchmarkData.forEach(item => {
-        const dateStr = item.date.split('T')[0];
-        benchmarkMap.set(dateStr, item.price);
+    // Aktif Benchmarkları Belirle
+    const activeBenchmarks = benchmarkType === 'INDEX' ? selectedBenchmarks : (selectedFriendId ? [selectedFriendId] : []);
+    
+    // Benchmark verilerini map'e çevir
+    const bMaps: Record<string, Map<string, number>> = {};
+    activeBenchmarks.forEach(sym => {
+        const data = benchmarkDataMap[sym] || [];
+        const map = new Map();
+        data.forEach(item => map.set(item.date.split('T')[0], item.price));
+        bMaps[sym] = map;
     });
 
     // Simülasyon Değişkenleri (Kar $ hesabı için)
-    let benchmarkUnits = 0; 
+    const bSims: Record<string, { units: number, lastPrice: number, startPrice: number }> = {};
+    
+    activeBenchmarks.forEach(sym => {
+        const data = benchmarkDataMap[sym] || [];
+        const startPrice = data.length > 0 ? data[0].price : 0;
+        bSims[sym] = { units: 0, lastPrice: startPrice, startPrice };
+    });
+
     let prevInvested = 0;
-    let lastValidBPrice = benchmarkData[0].price; 
     
     // TWR Değişkenleri (Getiri % hesabı için)
     let cumulativePortfolioTwr = 1.0;
-    const startBenchmarkPrice = benchmarkData[0].price;
 
     return validPortfolioData.map((pItem, i) => {
         // Tarih formatını eşle (YYYY-MM-DD) - Saat bilgisini yoksay
         const dateStr = pItem.date.split(' ')[0];
-        let bPrice = benchmarkMap.get(dateStr);
-        
-        // Eğer o gün piyasa kapalıysa (fiyat yoksa), son bilinen fiyatı kullan
-        if (bPrice) {
-            lastValidBPrice = bPrice;
-        } else {
-            bPrice = lastValidBPrice;
-        }
 
-        // --- 1. Kar ($) Hesabı (Simülasyon / ROI Mantığı) ---
         const cashFlow = pItem.invested - prevInvested;
-        
-        // Simülasyon: Para girdiyse o günkü fiyattan varlık al
-        if (bPrice > 0) {
-            const unitsChange = cashFlow / bPrice;
-            benchmarkUnits += unitsChange;
-        }
-        
         prevInvested = pItem.invested;
-
-        // Benchmark Portföyünün Toplam Değeri (Adet * Güncel Fiyat)
-        const benchmarkValue = benchmarkUnits * bPrice;
-        
-        // Karşılaştırma: Toplam Kar/Zarar Tutarı ($)
-        const invested = pItem.invested;
-        
-        const portfolioProfit = pItem.value - invested;
-        const benchmarkProfit = benchmarkValue - invested;
 
         // --- 2. Getiri (%) Hesabı (TWR Mantığı) ---
         // Portföy TWR: Nakit akışlarını arındırarak hesaplanır
@@ -191,35 +188,59 @@ export default function ComparisonView() {
             }
         }
         const portfolioPct = (cumulativePortfolioTwr - 1) * 100;
-
-        // EĞER ARKADAŞ KIYASLAMASIYSA:
-        // Arkadaşın verisi zaten portföy değeri olarak geliyor (price = value).
-        // Bu yüzden direkt değeri kullanabiliriz, simülasyona gerek yok.
-        const finalBenchmarkProfit = benchmarkType === 'FRIEND' ? (bPrice - startBenchmarkPrice) : benchmarkProfit;
-
-        // Benchmark TWR: Sadece fiyat değişimi (Nakit akışı etkisi yoktur)
-        const benchmarkPct = startBenchmarkPrice > 0 ? ((bPrice - startBenchmarkPrice) / startBenchmarkPrice) * 100 : 0;
+        const portfolioProfit = pItem.value - pItem.invested;
 
         // Güvenli değerler (NaN kontrolü)
         const safePortfolioPct = isNaN(portfolioPct) ? 0 : portfolioPct;
         const safePortfolioProfit = isNaN(portfolioProfit) ? 0 : portfolioProfit;
-        const safeBenchmarkPct = isNaN(benchmarkPct) ? 0 : benchmarkPct;
-        const safeBenchmarkProfit = isNaN(finalBenchmarkProfit) ? 0 : finalBenchmarkProfit;
 
-        return {
+        const row: any = {
             date: pItem.date,
             portfolio: viewMode === 'return' ? safePortfolioPct : safePortfolioProfit,
-            benchmark: viewMode === 'return' ? safeBenchmarkPct : safeBenchmarkProfit,
             // Hesaplamalar için ham veriler
             portfolioProfit: safePortfolioProfit,
-            benchmarkProfit: safeBenchmarkProfit,
             portfolioPct: safePortfolioPct,
-            benchmarkPct: safeBenchmarkPct,
             portfolioValue: pItem.value,
-            benchmarkValue: benchmarkValue
         };
+
+        // Her bir benchmark için hesaplama
+        activeBenchmarks.forEach(sym => {
+            let bPrice = bMaps[sym]?.get(dateStr);
+            
+            // Fiyat yoksa son fiyatı kullan
+            if (bPrice) {
+                bSims[sym].lastPrice = bPrice;
+            } else {
+                bPrice = bSims[sym].lastPrice;
+            }
+
+            // --- 1. Kar ($) Hesabı (Simülasyon) ---
+            if (bPrice > 0) {
+                const unitsChange = cashFlow / bPrice;
+                bSims[sym].units += unitsChange;
+            }
+            const bValue = bSims[sym].units * bPrice;
+            
+            // Arkadaş verisi zaten toplam değerdir
+            const finalBValue = (benchmarkType === 'FRIEND') ? bPrice : bValue;
+            const bProfit = finalBValue - pItem.invested;
+            const friendProfit = (benchmarkType === 'FRIEND') ? (bPrice - bSims[sym].startPrice) : bProfit;
+
+            // --- 2. Getiri (%) Hesabı ---
+            const bPct = bSims[sym].startPrice > 0 ? ((bPrice - bSims[sym].startPrice) / bSims[sym].startPrice) * 100 : 0;
+
+            const safeBPct = isNaN(bPct) ? 0 : bPct;
+            const safeBProfit = isNaN(friendProfit) ? 0 : friendProfit;
+
+            row[`benchmark_${sym}`] = viewMode === 'return' ? safeBPct : safeBProfit;
+            row[`benchmark_${sym}_value`] = finalBValue;
+            row[`benchmark_${sym}_profit`] = safeBProfit;
+            row[`benchmark_${sym}_pct`] = safeBPct;
+        });
+
+        return row;
     });
-  }, [portfolioData, benchmarkData, viewMode, benchmarkType]);
+  }, [portfolioData, benchmarkDataMap, viewMode, benchmarkType, selectedBenchmarks, selectedFriendId]);
 
   // Tarih Aralığına Göre Filtreleme
   const chartData = useMemo(() => {
@@ -245,25 +266,32 @@ export default function ComparisonView() {
     return fullChartData.filter(item => new Date(item.date) >= startDate);
   }, [fullChartData, selectedRange]);
 
-  const handleBenchmarkChange = (_: React.MouseEvent<HTMLElement>, newBenchmark: string) => {
-    if (newBenchmark !== null) {
-      setSelectedBenchmark(newBenchmark);
-      setBenchmarkType('INDEX');
-      setCustomSymbol('');
+  const handleBenchmarkToggle = (symbol: string) => {
+    if (selectedBenchmarks.includes(symbol)) {
+        if (selectedBenchmarks.length > 1) {
+            setSelectedBenchmarks(prev => prev.filter(s => s !== symbol));
+        }
+    } else {
+        if (selectedBenchmarks.length < 5) {
+            setSelectedBenchmarks(prev => [...prev, symbol]);
+        }
     }
+    setBenchmarkType('INDEX');
+    setCustomSymbol('');
   };
 
   const handleCustomSymbolSubmit = () => {
     if (customSymbol.trim()) {
-      setSelectedBenchmark(customSymbol.toUpperCase().trim());
+      const sym = customSymbol.toUpperCase().trim();
+      if (!selectedBenchmarks.includes(sym)) setSelectedBenchmarks(prev => [...prev, sym]);
       setBenchmarkType('INDEX');
     }
   };
 
   const handleResultClick = (symbol: string) => {
-    setSelectedBenchmark(symbol);
+    if (!selectedBenchmarks.includes(symbol)) setSelectedBenchmarks(prev => [...prev, symbol]);
     setBenchmarkType('INDEX');
-    setCustomSymbol(symbol);
+    setCustomSymbol('');
     setSearchResults([]);
     setShowResults(false);
   };
@@ -299,14 +327,16 @@ export default function ComparisonView() {
   const displayData = hoveredData || lastDataPoint;
   const benchmarkColor = '#2196f3';
 
-  let benchmarkName = selectedBenchmark;
-  if (benchmarkType === 'INDEX') {
-      benchmarkName = BENCHMARKS.find(b => b.symbol === selectedBenchmark)?.name || selectedBenchmark;
-  } else {
-      const friend = friends.find(f => String(f.id) === selectedFriendId);
-      benchmarkName = friend ? `${friend.username}'in Portföyü` : 'Arkadaş';
-  }
+  const getBenchmarkName = (sym: string) => {
+      if (benchmarkType === 'FRIEND') {
+          const friend = friends.find(f => String(f.id) === selectedFriendId);
+          return friend ? `${friend.username}` : 'Arkadaş';
+      }
+      return BENCHMARKS.find(b => b.symbol === sym)?.name || sym;
+  };
 
+  const activeBenchmarks = benchmarkType === 'INDEX' ? selectedBenchmarks : (selectedFriendId ? [selectedFriendId] : []);
+  
   const handleMouseMove = (e: any) => {
     if (e.activePayload && e.activePayload.length > 0) {
       setHoveredData(e.activePayload[0].payload);
@@ -332,8 +362,9 @@ export default function ComparisonView() {
                 const isProfit = (data.portfolioProfit ?? 0) >= 0;
                 color = isProfit ? '#00e676' : '#ff1744';
             } else {
-                // Benchmark rengi sabit
-                color = benchmarkColor;
+                // Benchmark rengini bul
+                // Recharts payload içinde color'ı otomatik verir ama biz manuel de bulabiliriz
+                // color zaten entry.color'dan geliyor
             }
 
             // Arkadaş kıyaslamasında dolar değerlerini gizle
@@ -462,11 +493,11 @@ export default function ComparisonView() {
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', width: { xs: '100%', xl: 'auto' }, justifyContent: { xs: 'flex-start', xl: 'flex-end' } }}>
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                 {BENCHMARKS.map((b) => {
-                    const isSelected = selectedBenchmark === b.symbol;
+                    const isSelected = selectedBenchmarks.includes(b.symbol);
                     return (
                         <Box 
                             key={b.symbol} 
-                            onClick={(e) => handleBenchmarkChange(e as any, b.symbol)}
+                            onClick={() => handleBenchmarkToggle(b.symbol)}
                             sx={{ 
                                 px: 2, py: 1, 
                                 borderRadius: 2, 
@@ -590,7 +621,7 @@ export default function ComparisonView() {
       }}>
         {/* Grafik Başlığı ve Mod Seçimi */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2, flexShrink: 0 }}>
-            <Box sx={{ display: 'flex', gap: 6 }}>
+            <Box sx={{ display: 'flex', gap: { xs: 3, md: 6 }, flexWrap: 'wrap' }}>
                 <Box>
                     <Typography variant="subtitle2" sx={{ color: '#a0a0a0', display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: (displayData?.portfolioProfit ?? 0) >= 0 ? '#00C805' : '#FF3B30' }} />
@@ -602,44 +633,47 @@ export default function ComparisonView() {
                             fontStyle: 'normal',
                             fontWeight: 800,
                             color: viewMode === 'return' ? ((displayData?.portfolioPct ?? 0) >= 0 ? '#00C805' : '#FF3B30') : ((displayData?.portfolioProfit ?? 0) >= 0 ? '#00C805' : '#FF3B30'),
-                            fontSize: '40px',
-                            lineHeight: '50px'
+                            fontSize: activeBenchmarks.length > 1 ? '28px' : '40px',
+                            lineHeight: activeBenchmarks.length > 1 ? '36px' : '50px'
                         }}>
                             {viewMode === 'return' 
                                 ? `${(displayData?.portfolioPct ?? 0) >= 0 ? '+' : ''}${(displayData?.portfolioPct ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
                                 : `${(displayData?.portfolioProfit ?? 0) >= 0 ? '+' : ''}${(displayData?.portfolioProfit ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                             }
                         </Typography>
-                        <Typography sx={{ fontSize: '20px', fontWeight: 'bold', color: 'white' }}>
+                        <Typography sx={{ fontSize: activeBenchmarks.length > 1 ? '16px' : '20px', fontWeight: 'bold', color: 'white' }}>
                             ${(displayData?.portfolioValue ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </Typography>
                     </Box>
                 </Box>
 
-                <Box>
-                    <Typography variant="subtitle2" sx={{ color: '#a0a0a0', display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: benchmarkColor }} />
-                        {benchmarkName}
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-                        <Typography sx={{ 
-                            fontFamily: 'Roboto, sans-serif',
-                            fontStyle: 'normal',
-                            fontWeight: 800,
-                            color: viewMode === 'return' ? ((displayData?.benchmarkPct ?? 0) >= 0 ? '#00C805' : '#FF3B30') : ((displayData?.benchmarkProfit ?? 0) >= 0 ? '#00C805' : '#FF3B30'),
-                            fontSize: '40px',
-                            lineHeight: '50px'
-                        }}>
-                            {viewMode === 'return' 
-                                ? `${(displayData?.benchmarkPct ?? 0) >= 0 ? '+' : ''}${(displayData?.benchmarkPct ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
-                                : (benchmarkType === 'FRIEND' ? '******' : `${(displayData?.benchmarkProfit ?? 0) >= 0 ? '+' : ''}${(displayData?.benchmarkProfit ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
-                            }
+                {/* Benchmark Gösterimi (Çoklu Seçim Destekli) */}
+                {activeBenchmarks.map((sym, index) => (
+                    <Box key={sym}>
+                        <Typography variant="subtitle2" sx={{ color: '#a0a0a0', display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: BENCHMARK_COLORS[index % BENCHMARK_COLORS.length] }} />
+                            {getBenchmarkName(sym)}
                         </Typography>
-                        <Typography sx={{ fontSize: '20px', fontWeight: 'bold', color: 'white' }}>
-                            {benchmarkType === 'FRIEND' ? '******' : `$${(displayData?.benchmarkValue ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                            <Typography sx={{ 
+                                fontFamily: 'Roboto, sans-serif',
+                                fontStyle: 'normal',
+                                fontWeight: 800,
+                                color: viewMode === 'return' ? ((displayData?.[`benchmark_${sym}_pct`] ?? 0) >= 0 ? '#00C805' : '#FF3B30') : ((displayData?.[`benchmark_${sym}_profit`] ?? 0) >= 0 ? '#00C805' : '#FF3B30'),
+                                fontSize: activeBenchmarks.length > 1 ? '28px' : '40px',
+                                lineHeight: activeBenchmarks.length > 1 ? '36px' : '50px'
+                            }}>
+                                {viewMode === 'return' 
+                                    ? `${(displayData?.[`benchmark_${sym}_pct`] ?? 0) >= 0 ? '+' : ''}${(displayData?.[`benchmark_${sym}_pct`] ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
+                                    : (benchmarkType === 'FRIEND' ? '******' : `${(displayData?.[`benchmark_${sym}_profit`] ?? 0) >= 0 ? '+' : ''}${(displayData?.[`benchmark_${sym}_profit`] ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
+                                }
+                            </Typography>
+                            <Typography sx={{ fontSize: activeBenchmarks.length > 1 ? '16px' : '20px', fontWeight: 'bold', color: 'white' }}>
+                                {benchmarkType === 'FRIEND' ? '******' : `$${(displayData?.[`benchmark_${sym}_value`] ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                            </Typography>
+                        </Box>
                     </Box>
-                </Box>
+                ))}
             </Box>
             <ToggleButtonGroup
                 value={viewMode}
@@ -686,10 +720,6 @@ export default function ComparisonView() {
                 <stop offset={off} stopColor="#00e676" stopOpacity={1} />
                 <stop offset={off} stopColor="#ff1744" stopOpacity={1} />
               </linearGradient>
-              <linearGradient id="colorBenchmark" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={benchmarkColor} stopOpacity={0.1}/>
-                <stop offset="95%" stopColor={benchmarkColor} stopOpacity={0}/>
-              </linearGradient>
             </defs>
             <XAxis dataKey="date" hide />
             <YAxis domain={['auto', 'auto']} hide />
@@ -711,16 +741,20 @@ export default function ComparisonView() {
               isAnimationActive={false}
               connectNulls
             />
-            <Area 
-              name={benchmarkName} 
-              type="linear" 
-              dataKey="benchmark" 
-              stroke={benchmarkColor} 
-              strokeWidth={2} 
-              fillOpacity={1} 
-              fill="url(#colorBenchmark)" 
-              isAnimationActive={false}
-            />
+            
+            {activeBenchmarks.map((sym, index) => (
+                <Area 
+                  key={sym}
+                  name={getBenchmarkName(sym)} 
+                  type="linear" 
+                  dataKey={`benchmark_${sym}`} 
+                  stroke={BENCHMARK_COLORS[index % BENCHMARK_COLORS.length]} 
+                  strokeWidth={2} 
+                  fillOpacity={0.1} 
+                  fill={BENCHMARK_COLORS[index % BENCHMARK_COLORS.length]} 
+                  isAnimationActive={false}
+                />
+            ))}
           </AreaChart>
           </ResponsiveContainer>
           ) : (

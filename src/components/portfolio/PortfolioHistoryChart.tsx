@@ -39,7 +39,9 @@ export default function PortfolioHistoryChart() {
         if (Array.isArray(json)) {
           // Gelecek tarihli verileri filtrele
           const now = new Date();
-          const validData = json.filter((d: any) => new Date(d.date) <= now);
+          // TWR hesaplaması için verilerin kronolojik sırada olması ZORUNLUDUR.
+          const sortedData = json.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          const validData = sortedData.filter((d: any) => new Date(d.date) <= now);
           setData(validData);
           if (validData.length > 0) {
             setCurrentValue(validData[validData.length - 1].value);
@@ -121,19 +123,26 @@ export default function PortfolioHistoryChart() {
         
         const cashFlow = inv - prevInv;
         
-        // TWR Hesabı (Sıfıra bölme hatasını önle)
+        // TWR Hesabı: (Dönem Sonu Değer - Dönem Başı Değer - Nakit Akışı) / Dönem Başı Değer
+        // Bu formül, dışsal nakit giriş/çıkışlarını (CF) performanstan arındırır.
+        // Sadece piyasa hareketinden kaynaklanan "organik" büyümeyi ölçer.
         if (prevVal > 0) {
-           const periodReturn = (val - cashFlow - prevVal) / prevVal;
+           const periodReturn = (val - prevVal - cashFlow) / prevVal;
            cumulativeTwr *= (1 + periodReturn);
         }
       }
+
+      // ROI Hesabı (Simple Return): (Güncel Değer - Net Yatırım) / Net Yatırım
+      // Bu, cebinizden çıkan paraya göre ne kadar kazandığınızı gösterir (Cash-on-Cash).
+      const roi = inv > 0 ? ((val - inv) / inv) * 100 : 0;
       
       return {
         ...d,
         value: val,
         invested: inv,
-        displayValue: viewMode === 'value' ? val : (val - inv),
+        displayValue: viewMode === 'value' ? val : (cumulativeTwr - 1) * 100,
         twr: (cumulativeTwr - 1) * 100,
+        roi: roi,
         withdrawal: withdrawalAmount,
         deposit: depositAmount
       };
@@ -205,6 +214,7 @@ export default function PortfolioHistoryChart() {
     : (chartData.length > 0 ? chartData[chartData.length - 1] : null);
     
   const displayTwr = currentTwrItem ? currentTwrItem.twr : 0;
+  const displayRoi = currentTwrItem ? currentTwrItem.roi : 0;
 
   const totalProfit = displayVal - displayInv;
   const isProfit = totalProfit >= 0;
@@ -332,23 +342,28 @@ export default function PortfolioHistoryChart() {
       <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <Box>
           <Typography variant="subtitle2" sx={{ color: '#a0a0a0' }}>
-            {viewMode === 'value' ? 'Toplam Portföy Değeri' : 'Toplam Kar/Zarar'}
+            {viewMode === 'value' ? 'Toplam Portföy Değeri' : 'Toplam Getiri (TWR)'}
           </Typography>
-          <Typography variant="h4" fontWeight="bold" sx={{ color: viewMode === 'value' ? 'white' : (isProfit ? '#00C805' : '#FF3B30'), display: 'flex', alignItems: 'baseline', flexWrap: 'wrap' }}>
+          <Typography variant="h4" fontWeight="bold" sx={{ color: viewMode === 'value' ? 'white' : (displayTwr >= 0 ? '#00C805' : '#FF3B30'), display: 'flex', alignItems: 'baseline', flexWrap: 'wrap' }}>
             {viewMode === 'value' 
               ? `$${displayVal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-              : `${isProfit ? '+' : ''}$${totalProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              : `${displayTwr >= 0 ? '+' : ''}%${displayTwr.toFixed(2)}`
             }
             <Typography 
               component="span" 
               variant="h6" 
               fontWeight="bold" 
-              sx={{ color: (viewMode === 'value' ? totalProfit : displayTwr) >= 0 ? '#00C805' : '#FF3B30', ml: 2 }}
+              sx={{ color: (viewMode === 'value' ? totalProfit : displayTwr) >= 0 ? '#00C805' : '#FF3B30', ml: 2, fontSize: '1rem' }}
             >
               {viewMode === 'value' ? (
-                <>{totalProfit >= 0 ? '+' : ''}${totalProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</>
+                <>{totalProfit >= 0 ? '+' : ''}${totalProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({displayRoi >= 0 ? '+' : ''}{displayRoi.toFixed(2)}%)</>
               ) : (
-                <>({displayTwr >= 0 ? '+' : ''}{displayTwr.toFixed(2)}%)</>
+                <>
+                  <span style={{ color: 'white', marginRight: '12px' }}>
+                    ${displayVal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                  {totalProfit >= 0 ? '+' : ''}${totalProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </>
               )}
             </Typography>
           </Typography>
