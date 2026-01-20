@@ -6,6 +6,8 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import { API_URL } from '../../config';
 
 export default function PortfolioHistoryChart() {
@@ -17,11 +19,14 @@ export default function PortfolioHistoryChart() {
   const [currentInvested, setCurrentInvested] = useState<number | null>(null);
   const [selectedRange, setSelectedRange] = useState('ALL');
   const [walletStats, setWalletStats] = useState({ deposited: 0, withdrawn: 0 });
+  const [transactions, setTransactions] = useState<any[]>([]);
   
   // Hover State'leri
   const [hoveredValue, setHoveredValue] = useState<number | null>(null);
   const [hoveredInvested, setHoveredInvested] = useState<number | null>(null);
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
+  const [hoveredWithdrawal, setHoveredWithdrawal] = useState<number | null>(null);
+  const [hoveredDeposit, setHoveredDeposit] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -65,6 +70,7 @@ export default function PortfolioHistoryChart() {
         const res = await fetch(`${API_URL}/api/wallet`, { headers });
         const data = await res.json();
         if (data.transactions) {
+          setTransactions(data.transactions);
           let dep = 0;
           let wid = 0;
           data.transactions.forEach((t: any) => {
@@ -98,6 +104,15 @@ export default function PortfolioHistoryChart() {
       const val = Number(d.value) || 0;
       const inv = Number(d.invested) || 0;
 
+      // Withdrawal kontrolü (Tarih eşleşmesi)
+      const dateStr = d.date.split('T')[0];
+      const withdrawalTx = transactions.find((t: any) => t.type === 'WITHDRAW' && t.date.startsWith(dateStr));
+      const withdrawalAmount = withdrawalTx ? Number(withdrawalTx.amount) : null;
+
+      // Deposit kontrolü
+      const depositTx = transactions.find((t: any) => t.type === 'DEPOSIT' && t.date.startsWith(dateStr));
+      const depositAmount = depositTx ? Number(depositTx.amount) : null;
+
       if (i > 0) {
         const prev = data[i-1];
         const prevVal = Number(prev.value) || 0;
@@ -117,10 +132,12 @@ export default function PortfolioHistoryChart() {
         value: val,
         invested: inv,
         displayValue: viewMode === 'value' ? val : (val - inv),
-        twr: (cumulativeTwr - 1) * 100
+        twr: (cumulativeTwr - 1) * 100,
+        withdrawal: withdrawalAmount,
+        deposit: depositAmount
       };
     });
-  }, [data, viewMode]);
+  }, [data, viewMode, transactions]);
 
   // 2. Seçilen Tarih Aralığına Göre Filtrele
   const chartData = useMemo(() => {
@@ -150,6 +167,8 @@ export default function PortfolioHistoryChart() {
       setHoveredValue(d.value);
       setHoveredInvested(d.invested);
       setHoveredDate(d.date);
+      setHoveredWithdrawal(d.withdrawal);
+      setHoveredDeposit(d.deposit);
     }
   };
 
@@ -157,6 +176,8 @@ export default function PortfolioHistoryChart() {
     setHoveredValue(null);
     setHoveredInvested(null);
     setHoveredDate(null);
+    setHoveredWithdrawal(null);
+    setHoveredDeposit(null);
   };
 
   const formatDate = (dateStr: string) => {
@@ -191,7 +212,7 @@ export default function PortfolioHistoryChart() {
   const startDisplayValue = chartData.length > 0 ? chartData[0].displayValue : 0;
   const currentDisplayValue = viewMode === 'value' ? displayVal : totalProfit;
   const isChartProfit = currentDisplayValue >= startDisplayValue;
-  const chartColor = isChartProfit ? '#00C805' : '#FF3B30';
+  const chartColor = viewMode === 'value' ? '#2979ff' : (isChartProfit ? '#00C805' : '#FF3B30');
 
   // Gradient Offset (Güvenli)
   const gradientOffset = () => {
@@ -212,6 +233,18 @@ export default function PortfolioHistoryChart() {
   };
   
   const off = gradientOffset();
+
+  // Custom Dot for Withdrawals
+  const CustomDot = (props: any) => {
+    const { cx, cy, payload } = props;
+    if (!payload) return null;
+    return (
+      <g>
+        {payload.deposit && <circle cx={cx} cy={cy} r={5} fill="#00C805" stroke="white" strokeWidth={2} />}
+        {payload.withdrawal && <circle cx={cx} cy={cy} r={5} fill="#FF3B30" stroke="white" strokeWidth={2} />}
+      </g>
+    );
+  };
 
   // 2. Erken Return (Loading veya Boş Veri)
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
@@ -261,25 +294,30 @@ export default function PortfolioHistoryChart() {
               component="span" 
               variant="h6" 
               fontWeight="bold" 
-              sx={{ color: isProfit ? '#00C805' : '#FF3B30', ml: 2 }}
+              sx={{ color: displayTwr >= 0 ? '#00C805' : '#FF3B30', ml: 2 }}
             >
-              {viewMode === 'value' && <>{isProfit ? '+' : ''}${totalProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} </>}
-              ({displayTwr >= 0 ? '+' : ''}{displayTwr.toFixed(2)}%)
+              {viewMode === 'value' ? (
+                null
+              ) : (
+                <>({displayTwr >= 0 ? '+' : ''}{displayTwr.toFixed(2)}%)</>
+              )}
             </Typography>
           </Typography>
           
-          {/* Ana Para Gösterimi (Sadece Net Worth Modunda) */}
-          {viewMode === 'value' && (
-             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-               <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#2196f3' }} />
-               <Typography variant="body2" sx={{ color: '#a0a0a0', fontWeight: 'bold' }}>
-                 Ana Para: <Box component="span" sx={{ color: 'white' }}>${displayInv.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Box>
-               </Typography>
-             </Box>
-          )}
-
-          <Typography variant="body2" sx={{ color: '#a0a0a0', mt: 0.5, height: '20px', fontSize: '0.875rem' }}>
-            {hoveredDate ? formatDate(hoveredDate) : ' '}
+          <Typography variant="body2" sx={{ color: '#a0a0a0', mt: 0.5, height: '20px', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: 2 }}>
+            <span>{hoveredDate ? formatDate(hoveredDate) : ' '}</span>
+            {hoveredWithdrawal && (
+              <span style={{ color: '#FF3B30', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: 'rgba(255, 59, 48, 0.1)', padding: '0 6px', borderRadius: '4px' }}>
+                <TrendingDownIcon sx={{ fontSize: 14 }} /> 
+                Withdrawal: -${hoveredWithdrawal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+              </span>
+            )}
+            {hoveredDeposit && (
+              <span style={{ color: '#00C805', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: 'rgba(0, 200, 5, 0.1)', padding: '0 6px', borderRadius: '4px' }}>
+                <TrendingUpIcon sx={{ fontSize: 14 }} /> 
+                Deposit: +${hoveredDeposit.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+              </span>
+            )}
           </Typography>
         </Box>
 
@@ -341,19 +379,6 @@ export default function PortfolioHistoryChart() {
           
           {viewMode === 'profit' && <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />}
           
-          {/* Ana Para Alanı (Sadece Net Worth Modunda) */}
-          {viewMode === 'value' && (
-            <Area 
-              type="monotone" 
-              dataKey="invested" 
-              stroke="#2196f3" 
-              strokeWidth={2}
-              fillOpacity={1} 
-              fill="url(#investedColor)" 
-              isAnimationActive={false}
-            />
-          )}
-
           <Area 
             type="monotone" 
             dataKey="displayValue" 
@@ -362,6 +387,7 @@ export default function PortfolioHistoryChart() {
             fillOpacity={1} 
             fill={viewMode === 'value' ? "url(#portColorValue)" : "url(#portSplitColor)"} 
             isAnimationActive={false}
+            dot={<CustomDot />}
           />
         </AreaChart>
       </ResponsiveContainer>
