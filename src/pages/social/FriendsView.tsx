@@ -49,7 +49,7 @@ export default function FriendsView() {
 
   const fetchFriends = async () => {
     try {
-      const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+      const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
       const headers = { 'X-User-ID': String(user.id || '1') };
       
       // Arkadaşları Çek
@@ -77,7 +77,7 @@ export default function FriendsView() {
   const handleSearch = async () => {
     if (searchQuery.length < 2) return;
     try {
-      const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+      const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
       const headers = { 'X-User-ID': String(user.id || '1') };
       const res = await fetch(`${API_URL}/api/users/search?q=${searchQuery}`, { headers });
       const data = await res.json();
@@ -94,7 +94,7 @@ export default function FriendsView() {
 
   const sendFriendRequest = async (friendId: number) => {
     try {
-      const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+      const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
       const headers = { 'Content-Type': 'application/json', 'X-User-ID': String(user.id || '1') };
       
       const res = await fetch(`${API_URL}/api/friends/request`, {
@@ -120,7 +120,7 @@ export default function FriendsView() {
 
   const handleRequestResponse = async (requestId: number, action: 'accept' | 'reject') => {
     try {
-      const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+      const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
       const headers = { 'Content-Type': 'application/json', 'X-User-ID': String(user.id || '1') };
       
       const res = await fetch(`${API_URL}/api/friends/requests/respond`, {
@@ -143,7 +143,7 @@ export default function FriendsView() {
     if (!window.confirm('Arkadaşı silmek istediğinize emin misiniz?')) return;
     
     try {
-      const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+      const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
       const headers = { 'X-User-ID': String(user.id || '1') };
       
       const res = await fetch(`${API_URL}/api/friends?id=${friendId}`, {
@@ -166,7 +166,7 @@ export default function FriendsView() {
     setFriendHoldings([]);
     
     try {
-        const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+        const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
         const headers = { 'X-User-ID': String(user.id || '1') };
         const res = await fetch(`${API_URL}/api/friends/holdings/${friend.id}`, { headers });
         const data = await res.json();

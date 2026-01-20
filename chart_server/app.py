@@ -201,17 +201,6 @@ def create_tables(db):
     
     db.commit()
     
-    # Varsayılan Kullanıcı Oluştur
-    try:
-        if db.is_postgres:
-            db.execute("INSERT INTO users (id, username, password_hash) VALUES (1, 'demo', 'pbkdf2:sha256:260000$placeholder$placeholder') ON CONFLICT DO NOTHING")
-            # PostgreSQL Sequence Senkronizasyonu (ID çakışmasını önlemek için)
-            db.execute("SELECT setval(pg_get_serial_sequence('users', 'id'), COALESCE((SELECT MAX(id) FROM users), 1))")
-        else:
-            db.execute("INSERT OR IGNORE INTO users (id, username, password_hash) VALUES (1, 'demo', 'pbkdf2:sha256:260000$placeholder$placeholder')")
-    except:
-        pass
-    
     db.commit()
 
 def get_db():
@@ -243,6 +232,13 @@ def init_db():
         db = get_db()
         create_tables(db)
         print("[DB] Veritabanı ve tablolar kontrol edildi/oluşturuldu.")
+        
+        # Kullanıcı sayısını kontrol et (Sıfırlamayı teyit etmek için)
+        try:
+            count = db.execute("SELECT count(*) as cnt FROM users").fetchone()['cnt']
+            print(f"[DB] Veritabanı ve tablolar hazır. Mevcut kullanıcı sayısı: {count}")
+        except:
+            print("[DB] Veritabanı ve tablolar kontrol edildi.")
 
 # --- KIMLIK DOGRULAMA (AUTH) ---
 
