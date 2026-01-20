@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Table from '@mui/material/Table';
@@ -25,6 +25,9 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import Button from '@mui/material/Button';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import Collapse from '@mui/material/Collapse';
 import { API_URL } from '../../config';
 import { deleteTransaction } from '../../services/portfolioService';
 
@@ -39,6 +42,122 @@ interface Transaction {
   type: 'BUY' | 'SELL';
   profit?: number;
   profitPercent?: number;
+}
+
+interface Trade {
+  id: string;
+  symbol: string;
+  status: 'OPEN' | 'CLOSED';
+  startDate: string;
+  endDate?: string;
+  totalProfit: number;
+  totalCommission: number;
+  transactions: Transaction[];
+  netQuantity: number;
+  avgPrice: number;
+}
+
+// Tekil Satır Bileşeni (Grup ve Detayları Yönetir)
+function TradeRow({ trade, onDelete }: { trade: Trade, onDelete: (id: number) => void }) {
+  const [open, setOpen] = useState(false);
+  const isProfit = trade.totalProfit >= 0;
+
+  return (
+    <Fragment>
+      <TableRow sx={{ '& > *': { borderBottom: 'unset' }, cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } }} onClick={() => setOpen(!open)}>
+        <TableCell>
+          <IconButton aria-label="expand row" size="small" sx={{ color: '#a0a0a0' }}>
+            {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+          </IconButton>
+        </TableCell>
+        <TableCell component="th" scope="row" sx={{ color: 'white', fontWeight: 'bold' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Avatar src={`${API_URL}/logos/${trade.symbol}.png`} sx={{ width: 32, height: 32, bgcolor: 'rgba(255,255,255,0.1)', fontSize: '0.8rem' }}>{trade.symbol.substring(0, 2)}</Avatar>
+            {trade.symbol}
+          </Box>
+        </TableCell>
+        <TableCell align="right" sx={{ color: '#a0a0a0' }}>
+          {new Date(trade.startDate).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' })}
+        </TableCell>
+        <TableCell align="center">
+          <Chip 
+            label={trade.status === 'OPEN' ? 'AÇIK' : 'KAPALI'} 
+            size="small" 
+            sx={{ 
+              bgcolor: trade.status === 'OPEN' ? 'rgba(41, 121, 255, 0.1)' : 'rgba(255, 255, 255, 0.05)', 
+              color: trade.status === 'OPEN' ? '#2979ff' : '#a0a0a0',
+              fontWeight: 'bold', border: '1px solid', borderColor: trade.status === 'OPEN' ? 'rgba(41, 121, 255, 0.3)' : 'rgba(255, 255, 255, 0.1)'
+            }} 
+          />
+        </TableCell>
+        <TableCell align="right" sx={{ color: 'white' }}>{trade.transactions.length} İşlem</TableCell>
+        <TableCell align="right" sx={{ color: isProfit ? '#00e676' : '#ff1744', fontWeight: 'bold' }}>
+          {trade.status === 'CLOSED' || trade.totalProfit !== 0 ? (
+            `${isProfit ? '+' : ''}$${Math.abs(trade.totalProfit).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          ) : '-'}
+        </TableCell>
+      </TableRow>
+      <TableRow>
+        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
+          <Collapse in={open} timeout="auto" unmountOnExit>
+            <Box sx={{ m: 2, ml: 9, p: 3, bgcolor: 'rgba(20,20,20,0.5)', borderRadius: 3, border: '1px solid rgba(255,255,255,0.08)', boxShadow: 'inset 0 4px 20px rgba(0,0,0,0.2)' }}>
+              <Typography variant="caption" sx={{ color: '#666', mb: 2, display: 'block', fontWeight: 'bold', letterSpacing: '1px', fontSize: '0.7rem' }}>
+                İŞLEM GEÇMİŞİ & DETAYLAR
+              </Typography>
+              <Table size="small" aria-label="purchases">
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ color: '#888', fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>TARİH</TableCell>
+                    <TableCell sx={{ color: '#888', fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>TİP</TableCell>
+                    <TableCell align="right" sx={{ color: '#888', fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>ADET</TableCell>
+                    <TableCell align="right" sx={{ color: '#888', fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>FİYAT</TableCell>
+                    <TableCell align="right" sx={{ color: '#888', fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>TOPLAM</TableCell>
+                    <TableCell align="right" sx={{ color: '#888', fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>KAR/ZARAR</TableCell>
+                    <TableCell align="right" sx={{ color: '#888', fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>İŞLEM</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {trade.transactions.map((tx) => (
+                    <TableRow key={tx.id} sx={{ '&:last-child td, &:last-child th': { border: 0 }, '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' } }}>
+                      <TableCell component="th" scope="row" sx={{ color: '#ccc', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '0.85rem' }}>
+                        {new Date(tx.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </TableCell>
+                      <TableCell sx={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <Chip 
+                          label={tx.type === 'BUY' ? 'ALIŞ' : 'SATIŞ'} 
+                          size="small" 
+                          sx={{ 
+                            height: 20, 
+                            fontSize: '0.65rem', 
+                            fontWeight: 'bold',
+                            bgcolor: tx.type === 'BUY' ? 'rgba(0, 230, 118, 0.1)' : 'rgba(255, 23, 68, 0.1)',
+                            color: tx.type === 'BUY' ? '#00e676' : '#ff1744',
+                            border: '1px solid',
+                            borderColor: tx.type === 'BUY' ? 'rgba(0, 230, 118, 0.2)' : 'rgba(255, 23, 68, 0.2)'
+                          }} 
+                        />
+                      </TableCell>
+                      <TableCell align="right" sx={{ color: '#ccc', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '0.85rem' }}>{tx.quantity}</TableCell>
+                      <TableCell align="right" sx={{ color: '#ccc', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '0.85rem' }}>${tx.price.toFixed(2)}</TableCell>
+                      <TableCell align="right" sx={{ color: '#ccc', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '0.85rem' }}>${tx.totalCost.toLocaleString()}</TableCell>
+                      <TableCell align="right" sx={{ color: (tx.profit || 0) >= 0 ? '#00e676' : '#ff1744', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                        {tx.type === 'SELL' && tx.profit !== undefined ? `$${tx.profit.toFixed(2)}` : '-'}
+                      </TableCell>
+                      <TableCell align="right" sx={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <IconButton onClick={(e) => { e.stopPropagation(); onDelete(tx.id); }} size="small" sx={{ color: '#ef5350', opacity: 0.7, '&:hover': { opacity: 1, bgcolor: 'rgba(239, 83, 80, 0.1)' } }}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Box>
+          </Collapse>
+        </TableCell>
+      </TableRow>
+    </Fragment>
+  );
 }
 
 export default function HistoryView() {
@@ -85,12 +204,18 @@ export default function HistoryView() {
 
   // Kar/Zarar Hesaplama Mantığı (Ortalama Maliyet Yöntemi)
   const transactionsWithProfit = useMemo(() => {
+    if (!Array.isArray(transactions)) return [];
+
     // Hesaplama için eskiden yeniye sırala
-    const sorted = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const sorted = [...transactions].sort((a, b) => {
+      const dateA = a.date ? new Date(a.date).getTime() : 0;
+      const dateB = b.date ? new Date(b.date).getTime() : 0;
+      return dateA - dateB;
+    });
     const inventory: Record<string, { quantity: number; totalCost: number }> = {};
 
     const calculated = sorted.map(tx => {
-      const sym = tx.symbol;
+      const sym = tx.symbol || 'UNKNOWN';
       if (!inventory[sym]) inventory[sym] = { quantity: 0, totalCost: 0 };
       
       let profit = undefined;
@@ -112,7 +237,7 @@ export default function HistoryView() {
           const revenue = total - comm; // Net gelir (Tutar - Komisyon)
           
           profit = revenue - costOfSold;
-          profitPercent = (profit / costOfSold) * 100;
+          profitPercent = costOfSold !== 0 ? (profit / costOfSold) * 100 : 0;
           
           // Envanterden düş
           inventory[sym].quantity -= qty;
@@ -128,17 +253,78 @@ export default function HistoryView() {
     });
 
     // Gösterim için yeniden eskiye sırala ve filtrele
-    return calculated.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).filter(tx => 
-      tx.symbol.toLowerCase().includes(searchTerm.toLowerCase())
+    return calculated.sort((a, b) => {
+      const dateA = a.date ? new Date(a.date).getTime() : 0;
+      const dateB = b.date ? new Date(b.date).getTime() : 0;
+      return dateB - dateA;
+    }).filter(tx => 
+      (tx.symbol || '').toLowerCase().includes((searchTerm || '').toLowerCase())
     );
   }, [transactions, searchTerm]);
 
-  const paginatedTransactions = useMemo(() => {
-    const start = (page - 1) * itemsPerPage;
-    return transactionsWithProfit.slice(start, start + itemsPerPage);
-  }, [transactionsWithProfit, page]);
+  // --- YENİ: Trade (Pozisyon) Gruplama Mantığı ---
+  const trades = useMemo(() => {
+    if (!transactionsWithProfit.length) return [];
 
-  const totalPages = Math.ceil(transactionsWithProfit.length / itemsPerPage);
+    // İşlemleri eskiden yeniye sırala (Kronolojik akış için)
+    const sortedTx = [...transactionsWithProfit].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    const resultTrades: Trade[] = [];
+    const openTrades: Record<string, Trade> = {};
+
+    sortedTx.forEach(tx => {
+        let trade = openTrades[tx.symbol];
+
+        if (!trade) {
+            // Yeni pozisyon başlat
+            trade = {
+                id: `trade-${tx.symbol}-${tx.date}-${Math.random().toString(36).substr(2, 9)}`,
+                symbol: tx.symbol,
+                status: 'OPEN',
+                startDate: tx.date,
+                totalProfit: 0,
+                totalCommission: 0,
+                transactions: [],
+                netQuantity: 0,
+                avgPrice: 0
+            };
+            openTrades[tx.symbol] = trade;
+            resultTrades.push(trade);
+        }
+
+        // İşlemi trade'e ekle
+        trade.transactions.push(tx);
+        trade.totalCommission += Number(tx.totalCommission);
+        
+        const qty = Number(tx.quantity);
+        if (tx.type === 'BUY') trade.netQuantity += qty;
+        else {
+            trade.netQuantity -= qty;
+            if (tx.profit !== undefined) trade.totalProfit += tx.profit;
+        }
+
+        // Pozisyon kapandı mı? (Toleranslı kontrol)
+        if (Math.abs(trade.netQuantity) < 0.000001) {
+            trade.status = 'CLOSED';
+            trade.endDate = tx.date;
+            delete openTrades[tx.symbol]; // Listeden çıkar, sonraki işlem yeni trade açsın
+        }
+    });
+
+    // Gösterim için: Yeniden eskiye sırala (En son açılan/kapanan en üstte)
+    return resultTrades.sort((a, b) => {
+         const dateA = a.endDate ? new Date(a.endDate).getTime() : new Date(a.transactions[a.transactions.length-1].date).getTime();
+         const dateB = b.endDate ? new Date(b.endDate).getTime() : new Date(b.transactions[b.transactions.length-1].date).getTime();
+         return dateB - dateA;
+    });
+  }, [transactionsWithProfit]);
+
+  const paginatedTrades = useMemo(() => {
+    const start = (page - 1) * itemsPerPage;
+    return trades.slice(start, start + itemsPerPage);
+  }, [trades, page]);
+
+  const totalPages = Math.ceil(trades.length / itemsPerPage);
 
   const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => {
     setPage(value);
@@ -159,10 +345,10 @@ export default function HistoryView() {
           </Avatar>
           <Box>
             <Typography variant="h4" fontWeight="800" sx={{ letterSpacing: '-1px' }}>
-              İşlem Geçmişi
+              Pozisyon Geçmişi
             </Typography>
             <Typography variant="body2" sx={{ color: '#888' }}>
-              Tüm alım ve satım işlemlerinizin detaylı listesi.
+              Gruplandırılmış alım-satım pozisyonlarınız.
             </Typography>
           </Box>
         </Box>
@@ -205,105 +391,25 @@ export default function HistoryView() {
         <Table sx={{ minWidth: 650 }} aria-label="transaction history table">
           <TableHead>
             <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.02)' }}>
-              <TableCell sx={{ color: '#666', fontWeight: 'bold', py: 2.5, pl: 4 }}>SEMBOL</TableCell>
-              <TableCell sx={{ color: '#666', fontWeight: 'bold', py: 2.5 }}>TARİH</TableCell>
-              <TableCell sx={{ color: '#666', fontWeight: 'bold', py: 2.5 }}>İŞLEM TİPİ</TableCell>
-              <TableCell align="right" sx={{ color: '#666', fontWeight: 'bold', py: 2.5 }}>ADET</TableCell>
-              <TableCell align="right" sx={{ color: '#666', fontWeight: 'bold', py: 2.5 }}>BİRİM FİYAT</TableCell>
-              <TableCell align="right" sx={{ color: '#666', fontWeight: 'bold', py: 2.5 }}>TOPLAM TUTAR</TableCell>
-              <TableCell align="right" sx={{ color: '#666', fontWeight: 'bold', py: 2.5, pr: 4 }}>KOMİSYON</TableCell>
-              <TableCell align="right" sx={{ color: '#666', fontWeight: 'bold', py: 2.5 }}>KAR/ZARAR</TableCell>
-              <TableCell align="right" sx={{ color: '#666', fontWeight: 'bold', py: 2.5 }}>İŞLEM</TableCell>
+              <TableCell />
+              <TableCell sx={{ color: '#666', fontWeight: 'bold', py: 2 }}>SEMBOL</TableCell>
+              <TableCell align="right" sx={{ color: '#666', fontWeight: 'bold', py: 2 }}>BAŞLANGIÇ</TableCell>
+              <TableCell align="center" sx={{ color: '#666', fontWeight: 'bold', py: 2 }}>DURUM</TableCell>
+              <TableCell align="right" sx={{ color: '#666', fontWeight: 'bold', py: 2 }}>İŞLEM SAYISI</TableCell>
+              <TableCell align="right" sx={{ color: '#666', fontWeight: 'bold', py: 2 }}>TOPLAM KAR/ZARAR</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {paginatedTransactions.length === 0 ? (
+            {paginatedTrades.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ color: '#666', py: 8 }}>
+                <TableCell colSpan={6} align="center" sx={{ color: '#666', py: 8 }}>
                   <HistoryIcon sx={{ fontSize: 48, mb: 2, opacity: 0.2 }} />
                   <Typography>Henüz işlem kaydı bulunmuyor.</Typography>
                 </TableCell>
               </TableRow>
             ) : (
-              paginatedTransactions.map((row, index) => (
-                <TableRow
-                  key={index}
-                  sx={{ 
-                    '&:last-child td, &:last-child th': { border: 0 }, 
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
-                    transition: 'background-color 0.2s'
-                  }}
-                >
-                  <TableCell component="th" scope="row" sx={{ color: 'white', borderBottom: '1px solid rgba(255,255,255,0.05)', pl: 4 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Avatar 
-                        src={`${API_URL}/logos/${row.symbol}.png`} 
-                        sx={{ 
-                          width: 40, height: 40, 
-                          bgcolor: 'rgba(255,255,255,0.05)', 
-                          fontSize: '0.8rem',
-                          border: '1px solid rgba(255,255,255,0.1)'
-                        }}
-                      >
-                        {row.symbol.substring(0, 2)}
-                      </Avatar>
-                      <Box>
-                        <Typography fontWeight="bold" variant="body1">{row.symbol}</Typography>
-                      </Box>
-                    </Box>
-                  </TableCell>
-                  <TableCell sx={{ color: '#a0a0a0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    {new Date(row.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                  </TableCell>
-                  <TableCell sx={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    <Chip 
-                      icon={row.type === 'BUY' ? <TrendingUpIcon sx={{ '&&': { color: 'inherit' } }} /> : <TrendingDownIcon sx={{ '&&': { color: 'inherit' } }} />}
-                      label={row.type === 'BUY' ? 'ALIŞ' : 'SATIŞ'} 
-                      size="small"
-                      sx={{ 
-                        bgcolor: row.type === 'BUY' ? 'rgba(0, 230, 118, 0.1)' : 'rgba(255, 23, 68, 0.1)',
-                        color: row.type === 'BUY' ? '#00e676' : '#ff1744',
-                        fontWeight: 'bold',
-                        border: '1px solid',
-                        borderColor: row.type === 'BUY' ? 'rgba(0, 230, 118, 0.2)' : 'rgba(255, 23, 68, 0.2)',
-                        pl: 0.5
-                      }} 
-                    />
-                  </TableCell>
-                  <TableCell align="right" sx={{ color: 'white', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    {row.quantity.toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 4 })}
-                  </TableCell>
-                  <TableCell align="right" sx={{ color: 'white', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    ${row.price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </TableCell>
-                  <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    ${row.totalCost.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </TableCell>
-                  <TableCell align="right" sx={{ color: '#888', borderBottom: '1px solid rgba(255,255,255,0.05)', pr: 4 }}>
-                    ${row.totalCommission.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </TableCell>
-                  <TableCell align="right" sx={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    {row.type === 'SELL' && row.profit !== undefined ? (
-                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                        <Typography variant="body2" sx={{ color: row.profit >= 0 ? '#00e676' : '#ff1744', fontWeight: 'bold' }}>
-                          {row.profit >= 0 ? '+' : ''}${Math.abs(row.profit).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: row.profit >= 0 ? 'rgba(0, 230, 118, 0.7)' : 'rgba(255, 23, 68, 0.7)' }}>
-                          %{row.profitPercent?.toFixed(2)}
-                        </Typography>
-                      </Box>
-                    ) : <Typography variant="body2" sx={{ color: '#666' }}>-</Typography>}
-                  </TableCell>
-                  <TableCell align="right" sx={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    <IconButton 
-                      onClick={() => handleDeleteClick(row.id)}
-                      size="small" 
-                      sx={{ color: '#ef5350', bgcolor: 'rgba(239, 83, 80, 0.1)', '&:hover': { bgcolor: 'rgba(239, 83, 80, 0.2)' } }}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
+              paginatedTrades.map((trade) => (
+                <TradeRow key={trade.id} trade={trade} onDelete={handleDeleteClick} />
               ))
             )}
           </TableBody>
