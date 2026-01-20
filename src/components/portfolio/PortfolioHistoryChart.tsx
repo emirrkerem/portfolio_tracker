@@ -8,6 +8,7 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import { API_URL } from '../../config';
 
 export default function PortfolioHistoryChart() {
@@ -256,26 +257,74 @@ export default function PortfolioHistoryChart() {
   return (
     <>
     {/* Bilgi Paneli (Toplam Yatırılan / Çekilen) */}
-    <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-      <Box sx={{ flex: 1, bgcolor: 'black', p: 2.5, borderRadius: 2, border: '1px solid rgba(255,255,255,0.1)' }}>
-        <Typography variant="body2" sx={{ color: '#a0a0a0', mb: 0.5 }}>Toplam Yatırılan</Typography>
-        <Typography variant="h5" fontWeight="bold" sx={{ color: 'white' }}>
-          ${walletStats.deposited.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </Typography>
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 2, mb: 3 }}>
+      
+      {/* Toplam Yatırılan */}
+      <Box sx={{ 
+        bgcolor: 'rgba(255,255,255,0.03)', 
+        p: 2.5, 
+        borderRadius: 3, 
+        border: '1px solid rgba(255,255,255,0.08)',
+        position: 'relative',
+        overflow: 'hidden',
+        transition: 'all 0.2s',
+        '&:hover': { transform: 'translateY(-2px)', borderColor: 'rgba(0, 230, 118, 0.3)', bgcolor: 'rgba(255,255,255,0.05)' }
+      }}>
+        <Box sx={{ position: 'absolute', top: -15, right: -15, width: 80, height: 80, borderRadius: '50%', bgcolor: 'rgba(0, 230, 118, 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+           <TrendingUpIcon sx={{ fontSize: 40, color: 'rgba(0, 230, 118, 0.1)' }} />
+        </Box>
+        <Typography variant="caption" sx={{ color: '#888', fontWeight: 'bold', letterSpacing: '1px', mb: 1, display: 'block', textTransform: 'uppercase' }}>TOPLAM YATIRILAN</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+           <Box sx={{ p: 0.8, borderRadius: 1.5, bgcolor: 'rgba(0, 230, 118, 0.1)', color: '#00e676', display: 'flex' }}><TrendingUpIcon fontSize="small" /></Box>
+           <Typography variant="h5" fontWeight="bold" sx={{ color: 'white' }}>
+             ${walletStats.deposited.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+           </Typography>
+        </Box>
       </Box>
       
-      <Box sx={{ flex: 1, bgcolor: 'black', p: 2.5, borderRadius: 2, border: '1px solid rgba(255,255,255,0.1)' }}>
-        <Typography variant="body2" sx={{ color: '#a0a0a0', mb: 0.5 }}>Toplam Çekilen</Typography>
-        <Typography variant="h5" fontWeight="bold" sx={{ color: 'white' }}>
-          ${walletStats.withdrawn.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </Typography>
+      {/* Toplam Çekilen */}
+      <Box sx={{ 
+        bgcolor: 'rgba(255,255,255,0.03)', 
+        p: 2.5, 
+        borderRadius: 3, 
+        border: '1px solid rgba(255,255,255,0.08)',
+        position: 'relative',
+        overflow: 'hidden',
+        transition: 'all 0.2s',
+        '&:hover': { transform: 'translateY(-2px)', borderColor: 'rgba(255, 23, 68, 0.3)', bgcolor: 'rgba(255,255,255,0.05)' }
+      }}>
+        <Box sx={{ position: 'absolute', top: -15, right: -15, width: 80, height: 80, borderRadius: '50%', bgcolor: 'rgba(255, 23, 68, 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+           <TrendingDownIcon sx={{ fontSize: 40, color: 'rgba(255, 23, 68, 0.1)' }} />
+        </Box>
+        <Typography variant="caption" sx={{ color: '#888', fontWeight: 'bold', letterSpacing: '1px', mb: 1, display: 'block', textTransform: 'uppercase' }}>TOPLAM ÇEKİLEN</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+           <Box sx={{ p: 0.8, borderRadius: 1.5, bgcolor: 'rgba(255, 23, 68, 0.1)', color: '#ff1744', display: 'flex' }}><TrendingDownIcon fontSize="small" /></Box>
+           <Typography variant="h5" fontWeight="bold" sx={{ color: 'white' }}>
+             ${walletStats.withdrawn.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+           </Typography>
+        </Box>
       </Box>
 
-      <Box sx={{ flex: 1, bgcolor: 'black', p: 2.5, borderRadius: 2, border: '1px solid rgba(255,255,255,0.1)' }}>
-        <Typography variant="body2" sx={{ color: '#a0a0a0', mb: 0.5 }}>Net Nakit Girişi</Typography>
-        <Typography variant="h5" fontWeight="bold" sx={{ color: '#2196f3' }}>
-          ${netInflow.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </Typography>
+      {/* Net Nakit Girişi */}
+      <Box sx={{ 
+        background: 'linear-gradient(135deg, rgba(33, 150, 243, 0.1) 0%, rgba(33, 150, 243, 0.05) 100%)', 
+        p: 2.5, 
+        borderRadius: 3, 
+        border: '1px solid rgba(33, 150, 243, 0.2)',
+        position: 'relative',
+        overflow: 'hidden',
+        transition: 'all 0.2s',
+        '&:hover': { transform: 'translateY(-2px)', borderColor: '#2196f3', boxShadow: '0 4px 20px rgba(33, 150, 243, 0.15)' }
+      }}>
+        <Box sx={{ position: 'absolute', top: -15, right: -15, width: 80, height: 80, borderRadius: '50%', bgcolor: 'rgba(33, 150, 243, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+           <AccountBalanceWalletIcon sx={{ fontSize: 40, color: 'rgba(33, 150, 243, 0.3)' }} />
+        </Box>
+        <Typography variant="caption" sx={{ color: '#2196f3', fontWeight: 'bold', letterSpacing: '1px', mb: 1, display: 'block', textTransform: 'uppercase' }}>NET NAKİT GİRİŞİ</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+           <Typography variant="h5" fontWeight="bold" sx={{ color: 'white' }}>
+             ${netInflow.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+           </Typography>
+        </Box>
       </Box>
     </Box>
 
