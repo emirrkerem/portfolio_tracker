@@ -81,29 +81,15 @@ export default function PortfolioView() {
       const walletData = await walletRes.json();
       setWalletBalance(walletData.balance || 0);
       
-      // Toplam Yatırılanı Hesapla (Max Net Investment Logic - High Watermark)
-      // Mantık: Para çekilince maliyet düşmez (kar azalır), para eklenince maliyet hemen artmaz (kar artar).
-      let currentNet = 0;
-      let maxNet = 0;
-      
-      const sortedTx = Array.isArray(walletData.transactions) 
-        ? [...walletData.transactions].sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
-        : [];
-
-      sortedTx.forEach((tx: any) => {
-          const amt = Number(tx.amount);
-          if (tx.type === 'DEPOSIT') {
-            currentNet += amt;
-          } else if (tx.type === 'WITHDRAW') {
-            currentNet -= amt;
-          }
-          
-          // Bugüne kadar ulaşılan en yüksek net yatırım tutarını baz al
-          if (currentNet > maxNet) {
-            maxNet = currentNet;
-          }
-      });
-      setNetInvestment(maxNet);
+      // Toplam Yatırılanı Hesapla (Sadeleştirildi: Yatırılan - Çekilen)
+      let netInvested = 0;
+      if (Array.isArray(walletData.transactions)) {
+        walletData.transactions.forEach((tx: any) => {
+          if (tx.type === 'DEPOSIT') netInvested += Number(tx.amount);
+          if (tx.type === 'WITHDRAW') netInvested -= Number(tx.amount);
+        });
+      }
+      setNetInvestment(netInvested);
 
       // 2. Portföy Hisseleri
       const portfolioRes = await fetch(`${API_URL}/api/portfolio`, { headers });
@@ -157,16 +143,16 @@ export default function PortfolioView() {
         setPortfolio(updatedPortfolio);
         setTotalEquity(equity);
         
-        // Hesaplama: (Hisse Değeri + Nakit) - (Toplam Yatırılan)
+        // Hesaplama: Nakit Bakiye + Açık Pozisyonların Güncel Piyasa Değeri
         const currentNetWorth = equity + (walletData.balance || 0);
-        setTotalProfit(currentNetWorth - maxNet);
+        setTotalProfit(currentNetWorth - netInvested);
 
         // Cache'i Güncelle
         const cacheData = {
           portfolio: updatedPortfolio,
           walletBalance: walletData.balance || 0,
           totalEquity: equity,
-          totalProfit: currentNetWorth - maxNet,
+          totalProfit: currentNetWorth - netInvested,
           recentTransactions: Array.isArray(txData) ? txData.slice(0, 5) : [],
           allTransactions: Array.isArray(txData) ? txData : []
         };
@@ -176,14 +162,14 @@ export default function PortfolioView() {
         setTotalEquity(0);
         
         const currentNetWorth = walletData.balance || 0;
-        setTotalProfit(currentNetWorth - maxNet);
+        setTotalProfit(currentNetWorth - netInvested);
         
         // Veri bos olsa bile cache'i guncelle (Eski verilerin kalmasini onle)
         const cacheData = {
           portfolio: [],
           walletBalance: walletData.balance || 0,
           totalEquity: 0,
-          totalProfit: currentNetWorth - maxNet,
+          totalProfit: currentNetWorth - netInvested,
           recentTransactions: Array.isArray(txData) ? txData.slice(0, 5) : [],
           allTransactions: Array.isArray(txData) ? txData : []
         };
