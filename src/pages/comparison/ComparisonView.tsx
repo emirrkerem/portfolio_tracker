@@ -14,6 +14,8 @@ import ClickAwayListener from '@mui/material/ClickAwayListener';
 import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import { API_URL } from '../../config';
 
 const BENCHMARKS = [
@@ -203,6 +205,8 @@ export default function ComparisonView() {
             portfolioProfit: safePortfolioProfit,
             portfolioPct: safePortfolioPct,
             portfolioValue: pItem.value,
+            deposit: cashFlow > 0.1 ? cashFlow : null,
+            withdrawal: cashFlow < -0.1 ? Math.abs(cashFlow) : null,
         };
 
         // Her bir benchmark için hesaplama
@@ -347,6 +351,17 @@ export default function ComparisonView() {
     setHoveredData(null);
   };
 
+  const CustomDot = (props: any) => {
+    const { cx, cy, payload } = props;
+    if (!payload || (!payload.deposit && !payload.withdrawal)) return null;
+    return (
+      <g>
+        {payload.deposit && <circle cx={cx} cy={cy} r={5} fill="#00e676" stroke="white" strokeWidth={2} />}
+        {payload.withdrawal && <circle cx={cx} cy={cy} r={5} fill="#ff1744" stroke="white" strokeWidth={2} />}
+      </g>
+    );
+  };
+
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
@@ -355,6 +370,24 @@ export default function ComparisonView() {
           <Typography variant="body2" sx={{ color: '#a0a0a0', mb: 1 }}>
             {new Date(label).toLocaleDateString('tr-TR')}
           </Typography>
+
+          {data.deposit && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, color: '#00e676' }}>
+               <TrendingUpIcon sx={{ fontSize: 16 }} />
+               <Typography variant="body2" fontWeight="bold">
+                 Yatırılan: +${data.deposit.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+               </Typography>
+            </Box>
+          )}
+          {data.withdrawal && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, color: '#ff1744' }}>
+               <TrendingDownIcon sx={{ fontSize: 16 }} />
+               <Typography variant="body2" fontWeight="bold">
+                 Çekilen: -${data.withdrawal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+               </Typography>
+            </Box>
+          )}
+
           {payload.map((entry: any, index: number) => {
             let color = entry.color;
             // Portföy rengi kar/zarar durumuna göre
@@ -754,6 +787,7 @@ export default function ComparisonView() {
               fill="url(#splitColorPortfolio)" 
               isAnimationActive={false}
               connectNulls
+              dot={<CustomDot />}
             />
             
             {activeBenchmarks.map((sym, index) => (
