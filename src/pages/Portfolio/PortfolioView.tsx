@@ -26,7 +26,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Button from '@mui/material/Button';
 import CurrencyLiraIcon from '@mui/icons-material/CurrencyLira';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import WalletManager from '../../components/portfolio/WalletManager';
 import PortfolioHistoryChart from '../../components/portfolio/PortfolioHistoryChart';
 import { API_URL } from '../../config';
@@ -51,7 +51,7 @@ export default function PortfolioView() {
   // Cache Helper
   const getCachedData = (key: string, defaultVal: any) => {
     try {
-      const cached = localStorage.getItem('portfolio_view_cache');
+      const cached = sessionStorage.getItem('portfolio_view_cache');
       if (cached) {
         const data = JSON.parse(cached);
         return data[key] !== undefined ? data[key] : defaultVal;
@@ -64,6 +64,7 @@ export default function PortfolioView() {
   const [walletBalance, setWalletBalance] = useState(() => getCachedData('walletBalance', 0));
   const [totalEquity, setTotalEquity] = useState(() => getCachedData('totalEquity', 0));
   const [totalProfit, setTotalProfit] = useState(() => getCachedData('totalProfit', 0));
+  const [netInvestment, setNetInvestment] = useState(0);
   const [recentTransactions, setRecentTransactions] = useState<any[]>(() => getCachedData('recentTransactions', []));
   const [allTransactions, setAllTransactions] = useState<any[]>(() => getCachedData('allTransactions', []));
   const [showInTry, setShowInTry] = useState(false);
@@ -72,7 +73,7 @@ export default function PortfolioView() {
 
   const fetchData = async () => {
     try {
-      const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+      const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
       const headers = { 'X-User-ID': String(user.id || '1') };
 
       // 1. Cüzdan Bakiyesi
@@ -80,13 +81,29 @@ export default function PortfolioView() {
       const walletData = await walletRes.json();
       setWalletBalance(walletData.balance || 0);
       
-      // Toplam Yatırılanı Hesapla (Sadece DEPOSIT)
-      let totalDeposits = 0;
-      if (Array.isArray(walletData.transactions)) {
-        walletData.transactions.forEach((tx: any) => {
-          if (tx.type === 'DEPOSIT') totalDeposits += Number(tx.amount);
-        });
-      }
+      // Toplam Yatırılanı Hesapla (Max Net Investment Logic - High Watermark)
+      // Mantık: Para çekilince maliyet düşmez (kar azalır), para eklenince maliyet hemen artmaz (kar artar).
+      let currentNet = 0;
+      let maxNet = 0;
+      
+      const sortedTx = Array.isArray(walletData.transactions) 
+        ? [...walletData.transactions].sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        : [];
+
+      sortedTx.forEach((tx: any) => {
+          const amt = Number(tx.amount);
+          if (tx.type === 'DEPOSIT') {
+            currentNet += amt;
+          } else if (tx.type === 'WITHDRAW') {
+            currentNet -= amt;
+          }
+          
+          // Bugüne kadar ulaşılan en yüksek net yatırım tutarını baz al
+          if (currentNet > maxNet) {
+            maxNet = currentNet;
+          }
+      });
+      setNetInvestment(maxNet);
 
       // 2. Portföy Hisseleri
       const portfolioRes = await fetch(`${API_URL}/api/portfolio`, { headers });
@@ -142,35 +159,35 @@ export default function PortfolioView() {
         
         // Hesaplama: (Hisse Değeri + Nakit) - (Toplam Yatırılan)
         const currentNetWorth = equity + (walletData.balance || 0);
-        setTotalProfit(currentNetWorth - totalDeposits);
+        setTotalProfit(currentNetWorth - maxNet);
 
         // Cache'i Güncelle
         const cacheData = {
           portfolio: updatedPortfolio,
           walletBalance: walletData.balance || 0,
           totalEquity: equity,
-          totalProfit: currentNetWorth - totalDeposits,
+          totalProfit: currentNetWorth - maxNet,
           recentTransactions: Array.isArray(txData) ? txData.slice(0, 5) : [],
           allTransactions: Array.isArray(txData) ? txData : []
         };
-        localStorage.setItem('portfolio_view_cache', JSON.stringify(cacheData));
+        sessionStorage.setItem('portfolio_view_cache', JSON.stringify(cacheData));
       } else {
         setPortfolio([]);
         setTotalEquity(0);
         
         const currentNetWorth = walletData.balance || 0;
-        setTotalProfit(currentNetWorth - totalDeposits);
+        setTotalProfit(currentNetWorth - maxNet);
         
         // Veri bos olsa bile cache'i guncelle (Eski verilerin kalmasini onle)
         const cacheData = {
           portfolio: [],
           walletBalance: walletData.balance || 0,
           totalEquity: 0,
-          totalProfit: currentNetWorth - totalDeposits,
+          totalProfit: currentNetWorth - maxNet,
           recentTransactions: Array.isArray(txData) ? txData.slice(0, 5) : [],
           allTransactions: Array.isArray(txData) ? txData : []
         };
-        localStorage.setItem('portfolio_view_cache', JSON.stringify(cacheData));
+        sessionStorage.setItem('portfolio_view_cache', JSON.stringify(cacheData));
       }
     } catch (error) {
       console.error("Portföy verisi çekilemedi:", error);
@@ -338,8 +355,10 @@ export default function PortfolioView() {
               <AccountBalanceWalletIcon />
             </Avatar>
           </Box>
-          <Typography variant="caption" sx={{ color: '#666' }}>
-            Kullanılabilir alım gücü (Buying Power)
+          <Typography variant="caption" sx={{ color: '#666', display: 'flex', justifyContent: 'space-between' }}>
+            <span>Kullanılabilir Bakiye</span>
+            <span>Net Yatırım: ${netInvestment.toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+            <span>Ana Para: ${netInvestment.toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
           </Typography>
         </Paper>
 
