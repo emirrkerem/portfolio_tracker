@@ -24,7 +24,7 @@ const BENCHMARKS = [
   { symbol: 'GC=F', name: 'Gold' }
 ];
 
-const BENCHMARK_COLORS = ['#2196f3', '#ff9800', '#9c27b0', '#00bcd4', '#e91e63', '#ffeb3b'];
+const BENCHMARK_COLORS = ['#ff9800', '#9c27b0', '#00bcd4', '#e91e63', '#ffeb3b', '#2196f3'];
 
 export default function ComparisonView() {
   const [portfolioData, setPortfolioData] = useState<any[]>([]);
@@ -34,7 +34,7 @@ export default function ComparisonView() {
   const [selectedFriendId, setSelectedFriendId] = useState<string>('');
   const [friends, setFriends] = useState<any[]>([]);
   const [customSymbol, setCustomSymbol] = useState('');
-  const [viewMode, setViewMode] = useState<'return' | 'profit'>('return');
+  const [viewMode, setViewMode] = useState<'return' | 'value'>('return');
   const [selectedRange, setSelectedRange] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [hoveredData, setHoveredData] = useState<any | null>(null);
@@ -50,7 +50,9 @@ export default function ComparisonView() {
         const res = await fetch(`${API_URL}/api/portfolio/history`, { headers });
         const data = await res.json();
         if (Array.isArray(data)) {
-          setPortfolioData(data);
+          // TWR hesaplaması için verilerin kronolojik sırada olması şarttır
+          const sortedData = data.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          setPortfolioData(sortedData);
         }
         
         // Arkadaşları da çek
@@ -196,7 +198,7 @@ export default function ComparisonView() {
 
         const row: any = {
             date: pItem.date,
-            portfolio: viewMode === 'return' ? safePortfolioPct : safePortfolioProfit,
+            portfolio: viewMode === 'return' ? safePortfolioPct : pItem.value,
             // Hesaplamalar için ham veriler
             portfolioProfit: safePortfolioProfit,
             portfolioPct: safePortfolioPct,
@@ -232,7 +234,7 @@ export default function ComparisonView() {
             const safeBPct = isNaN(bPct) ? 0 : bPct;
             const safeBProfit = isNaN(friendProfit) ? 0 : friendProfit;
 
-            row[`benchmark_${sym}`] = viewMode === 'return' ? safeBPct : safeBProfit;
+            row[`benchmark_${sym}`] = viewMode === 'return' ? safeBPct : finalBValue;
             row[`benchmark_${sym}_value`] = finalBValue;
             row[`benchmark_${sym}_profit`] = safeBProfit;
             row[`benchmark_${sym}_pct`] = safeBPct;
@@ -296,10 +298,8 @@ export default function ComparisonView() {
     setShowResults(false);
   };
 
-  const handleViewModeChange = (_: React.MouseEvent<HTMLElement>, newMode: 'return' | 'profit') => {
+  const handleViewModeChange = (_: React.MouseEvent<HTMLElement>, newMode: 'return' | 'value') => {
     if (newMode !== null) {
-      // Arkadaş modundaysa ve profit seçilmeye çalışılıyorsa engelle
-      if (benchmarkType === 'FRIEND' && newMode === 'profit') return;
       setViewMode(newMode);
     }
   };
@@ -360,7 +360,7 @@ export default function ComparisonView() {
             // Portföy rengi kar/zarar durumuna göre
             if (entry.name === 'Portföyüm') {
                 const isProfit = (data.portfolioProfit ?? 0) >= 0;
-                color = isProfit ? '#00e676' : '#ff1744';
+                color = viewMode === 'value' ? '#2979ff' : (isProfit ? '#00e676' : '#ff1744');
             } else {
                 // Benchmark rengini bul
                 // Recharts payload içinde color'ı otomatik verir ama biz manuel de bulabiliriz
@@ -369,7 +369,7 @@ export default function ComparisonView() {
 
             // Arkadaş kıyaslamasında dolar değerlerini gizle
             const isFriendBenchmark = benchmarkType === 'FRIEND' && entry.name !== 'Portföyüm';
-            const displayValue = isFriendBenchmark && viewMode === 'profit' 
+            const displayValue = isFriendBenchmark && viewMode === 'value' 
                 ? '******' 
                 : (viewMode === 'return' 
                     ? `%${entry.value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
@@ -624,7 +624,7 @@ export default function ComparisonView() {
             <Box sx={{ display: 'flex', gap: { xs: 3, md: 6 }, flexWrap: 'wrap' }}>
                 <Box>
                     <Typography variant="subtitle2" sx={{ color: '#a0a0a0', display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: (displayData?.portfolioProfit ?? 0) >= 0 ? '#00C805' : '#FF3B30' }} />
+                        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: viewMode === 'value' ? '#2979ff' : ((displayData?.portfolioProfit ?? 0) >= 0 ? '#00C805' : '#FF3B30') }} />
                         Portföyüm
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
@@ -632,18 +632,20 @@ export default function ComparisonView() {
                             fontFamily: 'Roboto, sans-serif',
                             fontStyle: 'normal',
                             fontWeight: 800,
-                            color: viewMode === 'return' ? ((displayData?.portfolioPct ?? 0) >= 0 ? '#00C805' : '#FF3B30') : ((displayData?.portfolioProfit ?? 0) >= 0 ? '#00C805' : '#FF3B30'),
+                            color: viewMode === 'return' ? ((displayData?.portfolioPct ?? 0) >= 0 ? '#00C805' : '#FF3B30') : 'white',
                             fontSize: activeBenchmarks.length > 1 ? '28px' : '40px',
                             lineHeight: activeBenchmarks.length > 1 ? '36px' : '50px'
                         }}>
                             {viewMode === 'return' 
                                 ? `${(displayData?.portfolioPct ?? 0) >= 0 ? '+' : ''}${(displayData?.portfolioPct ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
-                                : `${(displayData?.portfolioProfit ?? 0) >= 0 ? '+' : ''}${(displayData?.portfolioProfit ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                : `$${(displayData?.portfolioValue ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                             }
                         </Typography>
-                        <Typography sx={{ fontSize: activeBenchmarks.length > 1 ? '16px' : '20px', fontWeight: 'bold', color: 'white' }}>
-                            ${(displayData?.portfolioValue ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </Typography>
+                        {viewMode === 'return' && (
+                            <Typography sx={{ fontSize: activeBenchmarks.length > 1 ? '16px' : '20px', fontWeight: 'bold', color: 'white' }}>
+                                ${(displayData?.portfolioValue ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </Typography>
+                        )}
                     </Box>
                 </Box>
 
@@ -659,18 +661,20 @@ export default function ComparisonView() {
                                 fontFamily: 'Roboto, sans-serif',
                                 fontStyle: 'normal',
                                 fontWeight: 800,
-                                color: viewMode === 'return' ? ((displayData?.[`benchmark_${sym}_pct`] ?? 0) >= 0 ? '#00C805' : '#FF3B30') : ((displayData?.[`benchmark_${sym}_profit`] ?? 0) >= 0 ? '#00C805' : '#FF3B30'),
+                                color: viewMode === 'return' ? ((displayData?.[`benchmark_${sym}_pct`] ?? 0) >= 0 ? '#00C805' : '#FF3B30') : 'white',
                                 fontSize: activeBenchmarks.length > 1 ? '28px' : '40px',
                                 lineHeight: activeBenchmarks.length > 1 ? '36px' : '50px'
                             }}>
                                 {viewMode === 'return' 
                                     ? `${(displayData?.[`benchmark_${sym}_pct`] ?? 0) >= 0 ? '+' : ''}${(displayData?.[`benchmark_${sym}_pct`] ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
-                                    : (benchmarkType === 'FRIEND' ? '******' : `${(displayData?.[`benchmark_${sym}_profit`] ?? 0) >= 0 ? '+' : ''}${(displayData?.[`benchmark_${sym}_profit`] ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
+                                    : (benchmarkType === 'FRIEND' ? '******' : `$${(displayData?.[`benchmark_${sym}_value`] ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
                                 }
                             </Typography>
-                            <Typography sx={{ fontSize: activeBenchmarks.length > 1 ? '16px' : '20px', fontWeight: 'bold', color: 'white' }}>
-                                {benchmarkType === 'FRIEND' ? '******' : `$${(displayData?.[`benchmark_${sym}_value`] ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                            </Typography>
+                            {viewMode === 'return' && (
+                                <Typography sx={{ fontSize: activeBenchmarks.length > 1 ? '16px' : '20px', fontWeight: 'bold', color: 'white' }}>
+                                    {benchmarkType === 'FRIEND' ? '******' : `$${(displayData?.[`benchmark_${sym}_value`] ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                </Typography>
+                            )}
                         </Box>
                     </Box>
                 ))}
@@ -697,7 +701,7 @@ export default function ComparisonView() {
                     }
                 }}
             >
-                <ToggleButton value="profit" disabled={benchmarkType === 'FRIEND'}>Kar ($)</ToggleButton>
+                <ToggleButton value="value">Toplam Varlık ($)</ToggleButton>
                 <ToggleButton value="return">Getiri (%)</ToggleButton>
             </ToggleButtonGroup>
         </Box>
@@ -713,12 +717,12 @@ export default function ComparisonView() {
             >
             <defs>
               <linearGradient id="splitColorPortfolio" x1="0" y1="0" x2="0" y2="1">
-                <stop offset={off} stopColor="#00e676" stopOpacity={0.1} />
-                <stop offset={off} stopColor="#ff1744" stopOpacity={0.1} />
+                <stop offset={off} stopColor={viewMode === 'value' ? '#2979ff' : "#00e676"} stopOpacity={0.1} />
+                <stop offset={off} stopColor={viewMode === 'value' ? '#2979ff' : "#ff1744"} stopOpacity={0.1} />
               </linearGradient>
               <linearGradient id="splitStrokePortfolio" x1="0" y1="0" x2="0" y2="1">
-                <stop offset={off} stopColor="#00e676" stopOpacity={1} />
-                <stop offset={off} stopColor="#ff1744" stopOpacity={1} />
+                <stop offset={off} stopColor={viewMode === 'value' ? '#2979ff' : "#00e676"} stopOpacity={1} />
+                <stop offset={off} stopColor={viewMode === 'value' ? '#2979ff' : "#ff1744"} stopOpacity={1} />
               </linearGradient>
             </defs>
             <XAxis dataKey="date" hide />
