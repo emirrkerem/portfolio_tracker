@@ -646,6 +646,11 @@ export default function ComparisonView() {
                                 ${(displayData?.portfolioValue ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </Typography>
                         )}
+                        {viewMode === 'value' && (
+                            <Typography sx={{ fontSize: activeBenchmarks.length > 1 ? '16px' : '20px', fontWeight: 'bold', color: (displayData?.portfolioProfit ?? 0) >= 0 ? '#00C805' : '#FF3B30' }}>
+                                {(displayData?.portfolioProfit ?? 0) >= 0 ? '+' : ''}${(displayData?.portfolioProfit ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </Typography>
+                        )}
                     </Box>
                 </Box>
 
@@ -673,6 +678,11 @@ export default function ComparisonView() {
                             {viewMode === 'return' && (
                                 <Typography sx={{ fontSize: activeBenchmarks.length > 1 ? '16px' : '20px', fontWeight: 'bold', color: 'white' }}>
                                     {benchmarkType === 'FRIEND' ? '******' : `$${(displayData?.[`benchmark_${sym}_value`] ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                </Typography>
+                            )}
+                            {viewMode === 'value' && (
+                                <Typography sx={{ fontSize: activeBenchmarks.length > 1 ? '16px' : '20px', fontWeight: 'bold', color: (displayData?.[`benchmark_${sym}_profit`] ?? 0) >= 0 ? '#00C805' : '#FF3B30' }}>
+                                    {benchmarkType === 'FRIEND' ? '******' : `${(displayData?.[`benchmark_${sym}_profit`] ?? 0) >= 0 ? '+' : ''}${(displayData?.[`benchmark_${sym}_profit`] ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                                 </Typography>
                             )}
                         </Box>
