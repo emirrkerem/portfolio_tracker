@@ -1431,14 +1431,15 @@ def get_portfolio_history():
 @app.route('/api/users/search', methods=['GET'])
 def search_users():
     query = request.args.get('q', '')
+    print(f"[SEARCH] User Search Query: '{query}'") # Debug log
     if not query or len(query) < 2:
         return jsonify([])
     
     db = get_db()
     user_id = get_current_user_id()
     
-    # Kendisi hariç, aranan kelimeyi içeren kullanıcıları bul
-    cur = db.execute("SELECT id, username FROM users WHERE username LIKE ? AND id != ? LIMIT 5", (f'%{query}%', user_id))
+    # Kendisi hariç, aranan kelimeyi içeren kullanıcıları bul (Case-insensitive)
+    cur = db.execute("SELECT id, username FROM users WHERE LOWER(username) LIKE LOWER(?) AND id != ? LIMIT 5", (f'%{query}%', user_id))
     results = [dict(row) for row in cur.fetchall()]
     return jsonify(results)
 
