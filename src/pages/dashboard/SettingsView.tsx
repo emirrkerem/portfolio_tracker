@@ -22,7 +22,7 @@ export default function SettingsView() {
 
   const handleReset = async () => {
     try {
-      const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+      const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
       const headers = { 
         'Content-Type': 'application/json',
         'X-User-ID': String(user.id || '1') 
@@ -30,8 +30,8 @@ export default function SettingsView() {
       const res = await fetch(`${API_URL}/api/reset`, { method: 'POST', headers });
       if (res.ok) {
         // Tarayici onbellegini de temizle
-        localStorage.removeItem('portfolio_view_cache');
-        localStorage.removeItem('target_view_cache');
+        sessionStorage.removeItem('portfolio_view_cache');
+        sessionStorage.removeItem('target_view_cache');
         
         setSuccessMsg('Veriler başarıyla silindi. Sayfa yenileniyor...');
         setOpenReset(false);
@@ -47,7 +47,7 @@ export default function SettingsView() {
 
   const handleDeleteAccount = async () => {
     try {
-      const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+      const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
       const headers = { 
         'Content-Type': 'application/json',
         'X-User-ID': String(user.id || '1') 
@@ -56,6 +56,7 @@ export default function SettingsView() {
       if (res.ok) {
         // Her şeyi temizle ve çıkış yap
         localStorage.clear();
+        sessionStorage.clear();
         window.location.href = '/login';
       } else {
         setError('Hesap silme başarısız oldu.');

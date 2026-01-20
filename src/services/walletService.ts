@@ -2,7 +2,7 @@ import { API_URL } from '../config';
 
 export const getWalletBalance = async () => {
   try {
-    const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+    const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
     const headers = { 'X-User-ID': String(user.id || '1') };
     const res = await fetch(`${API_URL}/api/wallet`, { headers });
     return await res.json();
@@ -14,7 +14,7 @@ export const getWalletBalance = async () => {
 
 export const addWalletTransaction = async (type: 'DEPOSIT' | 'WITHDRAW', amount: number) => {
   try {
-    const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+    const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
     const headers = { 'Content-Type': 'application/json', 'X-User-ID': String(user.id || '1') };
 
     await fetch(`${API_URL}/api/wallet`, {

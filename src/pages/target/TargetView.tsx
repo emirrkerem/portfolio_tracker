@@ -44,7 +44,7 @@ export default function TargetView() {
   // Cache Helper
   const getCachedData = (key: string, defaultVal: any) => {
     try {
-      const cached = localStorage.getItem('target_view_cache');
+      const cached = sessionStorage.getItem('target_view_cache');
       if (cached) {
         const data = JSON.parse(cached);
         return data[key] !== undefined ? data[key] : defaultVal;
@@ -59,7 +59,7 @@ export default function TargetView() {
   const [returnRate, setReturnRate] = useState(() => getCachedData('returnRate', '8')); // Varsayılan %8
   const [monthlyContribution, setMonthlyContribution] = useState(() => getCachedData('monthlyContribution', ''));
   
-  const hasCache = !!localStorage.getItem('target_view_cache');
+  const hasCache = !!sessionStorage.getItem('target_view_cache');
   const [loading, setLoading] = useState(!hasCache); // Cache varsa loading gösterme
   const [saving, setSaving] = useState(false);
   const [tabValue, setTabValue] = useState(0);
@@ -77,7 +77,7 @@ export default function TargetView() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+        const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
         const headers = { 'X-User-ID': String(user.id || '1') };
 
         // 1. Mevcut Portföy Değerini Çek
@@ -119,7 +119,7 @@ export default function TargetView() {
             walletTransactions: walletData.transactions || [],
             portfolioHistory: Array.isArray(portData) ? portData : []
         };
-        localStorage.setItem('target_view_cache', JSON.stringify(cacheData));
+        sessionStorage.setItem('target_view_cache', JSON.stringify(cacheData));
 
       } catch (err) {
         console.error(err);
@@ -133,7 +133,7 @@ export default function TargetView() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+      const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
       const headers = { 'Content-Type': 'application/json', 'X-User-ID': String(user.id || '1') };
 
       await fetch(`${API_URL}/api/targets`, {
@@ -156,7 +156,7 @@ export default function TargetView() {
 
   const handleDeletePlan = async () => {
     try {
-      const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+      const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
       const headers = { 'X-User-ID': String(user.id || '1') };
       await fetch(`${API_URL}/api/targets`, { method: 'DELETE', headers });
       // State'leri sıfırla

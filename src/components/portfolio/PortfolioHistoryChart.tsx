@@ -26,7 +26,7 @@ export default function PortfolioHistoryChart() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+        const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
         const headers = { 'X-User-ID': String(user.id || '1') };
         const res = await fetch(`${API_URL}/api/portfolio/history`, { headers });
         const json = await res.json();
@@ -60,7 +60,7 @@ export default function PortfolioHistoryChart() {
   useEffect(() => {
     const fetchWalletStats = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+        const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
         const headers = { 'X-User-ID': String(user.id || '1') };
         const res = await fetch(`${API_URL}/api/wallet`, { headers });
         const data = await res.json();

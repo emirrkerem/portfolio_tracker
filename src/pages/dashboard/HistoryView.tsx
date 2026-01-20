@@ -11,8 +11,6 @@ import Paper from '@mui/material/Paper';
 import Chip from '@mui/material/Chip';
 import Avatar from '@mui/material/Avatar';
 import HistoryIcon from '@mui/icons-material/History';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
 import SearchIcon from '@mui/icons-material/Search';
@@ -170,7 +168,7 @@ export default function HistoryView() {
 
   const fetchTransactions = async () => {
     try {
-      const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+      const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
       const headers = { 'X-User-ID': String(user.id || '1') };
       const res = await fetch(`${API_URL}/api/transactions`, { headers });
       const data = await res.json();

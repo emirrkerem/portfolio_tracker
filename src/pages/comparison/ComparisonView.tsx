@@ -43,7 +43,7 @@ export default function ComparisonView() {
   useEffect(() => {
     const fetchPortfolio = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+        const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
         const headers = { 'X-User-ID': String(user.id || '1') };
         const res = await fetch(`${API_URL}/api/portfolio/history`, { headers });
         const data = await res.json();
@@ -80,7 +80,7 @@ export default function ComparisonView() {
             const data = await res.json();
             if (Array.isArray(data)) setBenchmarkData(data);
         } else if (benchmarkType === 'FRIEND' && selectedFriendId) {
-            const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+            const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
             const headers = { 'X-User-ID': String(user.id || '1') };
             const res = await fetch(`${API_URL}/api/friends/portfolio/${selectedFriendId}`, { headers });
             const data = await res.json();

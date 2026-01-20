@@ -295,13 +295,13 @@ function MainLayout() {
 
 function App() {
   const [user, setUser] = useState<any>(() => {
-    const saved = localStorage.getItem('borsa_user');
+    const saved = sessionStorage.getItem('borsa_user');
     return saved ? JSON.parse(saved) : null;
   });
 
   const handleLogin = (userData: any) => {
     setUser(userData);
-    localStorage.setItem('borsa_user', JSON.stringify(userData));
+    sessionStorage.setItem('borsa_user', JSON.stringify(userData));
   };
 
   // Heartbeat: Uygulama acik oldugu surece backend'e "ben buradayim" sinyali gonder

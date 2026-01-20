@@ -3,7 +3,7 @@ import { API_URL } from '../config';
 export const tradeStock = async (symbol: string, quantity: number, price: number, type: 'BUY' | 'SELL', date: string, commission: number) => {
   if (!symbol || quantity <= 0 || price <= 0) return;
 
-  const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+  const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
   const headers = { 
       'Content-Type': 'application/json',
       'X-User-ID': String(user.id || '1') 
@@ -51,7 +51,7 @@ export const tradeStock = async (symbol: string, quantity: number, price: number
 };
 
 export const deleteTransaction = async (id: number) => {
-  const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+  const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
   const headers = { 'X-User-ID': String(user.id || '1') };
   try {
     await fetch(`${API_URL}/api/transactions?id=${id}`, {
@@ -64,7 +64,7 @@ export const deleteTransaction = async (id: number) => {
 };
 
 export const updateTransaction = async (transaction: any) => {
-  const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+  const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
   const headers = { 'Content-Type': 'application/json', 'X-User-ID': String(user.id || '1') };
   try {
     await fetch(`${API_URL}/api/transactions`, {

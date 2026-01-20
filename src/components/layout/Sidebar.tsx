@@ -29,7 +29,7 @@ export default function Sidebar() {
   useEffect(() => {
     const fetchRequests = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+        const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
         if (!user.id) return;
         
         const headers = { 'X-User-ID': String(user.id) };
@@ -59,10 +59,10 @@ export default function Sidebar() {
   ];
 
   const handleLogout = () => {
-    localStorage.removeItem('borsa_user');
+    sessionStorage.removeItem('borsa_user');
     // Cache temizliği
-    localStorage.removeItem('portfolio_view_cache');
-    localStorage.removeItem('target_view_cache');
+    sessionStorage.removeItem('portfolio_view_cache');
+    sessionStorage.removeItem('target_view_cache');
     // Sayfayı yenile (App.tsx state'i sıfırlanır ve Login'e atar)
     window.location.href = '/';
   };

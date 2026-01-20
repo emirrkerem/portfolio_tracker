@@ -64,7 +64,7 @@ export default function WalletManager() {
   useEffect(() => {
     const fetchWalletData = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+        const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
         const headers = { 'X-User-ID': String(user.id || '1') };
         const res = await fetch(`${API_URL}/api/wallet`, { headers });
         const data = await res.json();
@@ -109,7 +109,7 @@ export default function WalletManager() {
   const handleConfirmDelete = async () => {
     if (itemToDelete === null) return;
     try {
-      const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+      const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
       const headers = { 'X-User-ID': user.id || '1' };
       await fetch(`${API_URL}/api/wallet?id=${itemToDelete}`, {
         method: 'DELETE',
@@ -237,7 +237,7 @@ export default function WalletManager() {
 
     setSubmitting(true);
     try {
-      const user = JSON.parse(localStorage.getItem('borsa_user') || '{}');
+      const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
       const headers = { 'Content-Type': 'application/json', 'X-User-ID': String(user.id || '1') };
 
       let res;
