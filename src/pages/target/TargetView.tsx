@@ -136,19 +136,39 @@ export default function TargetView() {
       const user = JSON.parse(sessionStorage.getItem('borsa_user') || '{}');
       const headers = { 'Content-Type': 'application/json', 'X-User-ID': String(user.id || '1') };
 
-      await fetch(`${API_URL}/api/targets`, {
+      const payload = { 
+        startingAmount: Number(startingAmount) || 0, 
+        startDate,
+        years: Number(years) || 10, 
+        returnRate: Number(returnRate) || 0, 
+        monthlyContribution: Number(monthlyContribution) || 0
+      };
+
+      const res = await fetch(`${API_URL}/api/targets`, {
         method: 'POST',
         headers: headers,
-        body: JSON.stringify({ 
-          startingAmount, 
-          startDate,
-          years, 
-          returnRate, 
-          monthlyContribution 
-        })
+        body: JSON.stringify(payload)
       });
+
+      if (res.ok) {
+        // Cache'i güncelle
+        const currentCache = JSON.parse(sessionStorage.getItem('target_view_cache') || '{}');
+        const newCache = {
+            ...currentCache,
+            ...payload,
+            startingAmount: String(payload.startingAmount),
+            years: String(payload.years),
+            returnRate: String(payload.returnRate),
+            monthlyContribution: String(payload.monthlyContribution)
+        };
+        sessionStorage.setItem('target_view_cache', JSON.stringify(newCache));
+        alert('Plan başarıyla kaydedildi.');
+      } else {
+        alert('Plan kaydedilemedi.');
+      }
     } catch (err) {
       console.error(err);
+      alert('Bir hata oluştu.');
     } finally {
       setSaving(false);
     }
