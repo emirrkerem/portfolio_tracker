@@ -91,16 +91,29 @@ export default function TargetView() {
         const targetRes = await fetch(`${API_URL}/api/targets`, { headers });
         const targetData = await targetRes.json();
         
-        // Null check ve String dönüşümü (TextField çökmesini önler)
-        if (targetData.startingAmount !== undefined && targetData.startingAmount !== null) setStartingAmount(String(targetData.startingAmount));
+        // PostgreSQL uyumluluğu: Veritabanından gelen sütun isimleri küçük harfe dönüşmüş olabilir.
+        const getVal = (key: string) => {
+            if (targetData[key] !== undefined) return targetData[key];
+            if (targetData[key.toLowerCase()] !== undefined) return targetData[key.toLowerCase()];
+            return undefined;
+        };
+
+        const tStartingAmount = getVal('startingAmount');
+        if (tStartingAmount !== undefined && tStartingAmount !== null) setStartingAmount(String(tStartingAmount));
         else setStartingAmount('0');
 
-        if (targetData.startDate) setStartDate(targetData.startDate);
+        const tStartDate = getVal('startDate');
+        if (tStartDate) setStartDate(tStartDate);
         else setStartDate(new Date().toISOString().split('T')[0]);
 
-        if (targetData.years !== undefined && targetData.years !== null) setYears(String(targetData.years));
-        if (targetData.returnRate !== undefined && targetData.returnRate !== null) setReturnRate(String(targetData.returnRate));
-        if (targetData.monthlyContribution !== undefined && targetData.monthlyContribution !== null) setMonthlyContribution(String(targetData.monthlyContribution));
+        const tYears = getVal('years');
+        if (tYears !== undefined && tYears !== null) setYears(String(tYears));
+
+        const tReturnRate = getVal('returnRate');
+        if (tReturnRate !== undefined && tReturnRate !== null) setReturnRate(String(tReturnRate));
+
+        const tMonthlyContribution = getVal('monthlyContribution');
+        if (tMonthlyContribution !== undefined && tMonthlyContribution !== null) setMonthlyContribution(String(tMonthlyContribution));
         
         // 3. Cüzdan İşlemlerini Çek (Takip sekmesi için)
         const walletRes = await fetch(`${API_URL}/api/wallet`, { headers });
