@@ -217,7 +217,6 @@ export default function PortfolioHistoryChart() {
   const displayRoi = currentTwrItem ? currentTwrItem.roi : 0;
 
   const totalProfit = displayVal - displayInv;
-  const isProfit = totalProfit >= 0;
   
   // Grafik Rengi (Başlangıca göre)
   const startDisplayValue = chartData.length > 0 ? chartData[0].displayValue : 0;

@@ -329,7 +329,6 @@ export default function ComparisonView() {
   const off = gradientOffset();
   const lastDataPoint = chartData.length > 0 ? chartData[chartData.length - 1] : null;
   const displayData = hoveredData || lastDataPoint;
-  const benchmarkColor = '#2196f3';
 
   const getBenchmarkName = (sym: string) => {
       if (benchmarkType === 'FRIEND') {
